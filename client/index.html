@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Draw & Guess</title>
+</head>
+<body>
+  <h2>Đăng nhập</h2>
+  <input id="username" placeholder="Tên đăng nhập"><br>
+  <input id="password" type="password" placeholder="Mật khẩu"><br>
+  <button onclick="login()">Đăng nhập</button>
+
+  <script>
+    const socket = new WebSocket("ws://localhost:9000");
+
+    socket.onopen = () => console.log("✅ Đã kết nối WebSocket");
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === "login_result") {
+        if (data.success) alert("Đăng nhập thành công!");
+        else alert("Sai tài khoản hoặc mật khẩu.");
+      }
+    };
+
+    function login() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      socket.send(JSON.stringify({
+        type: "login",
+        username,
+        password
+      }));
+    }
+  </script>
+</body>
+</html>

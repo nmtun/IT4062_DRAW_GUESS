@@ -1,0 +1,2 @@
+compile project 
+gcc main.c database.c websocket_server.c -o server -lwebsockets -lmysqlclient -lcjson
