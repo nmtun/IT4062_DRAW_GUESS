@@ -4,11 +4,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <cjson/cJSON.h>
+#include <libwebsockets.h>
 
 // Callback xử lý tin nhắn từ client
-static int callback_drawguess(struct lws *wsi, enum lws_callback_reasons reason,
-                              void *user, void *in, size_t len)
+static int
+callback_drawguess(struct lws *wsi, enum lws_callback_reasons reason,
+                   void *user, void *in, size_t len)
 {
+    (void)user;
+    (void)len;
     switch (reason)
     {
     case LWS_CALLBACK_RECEIVE:
@@ -32,8 +36,10 @@ static int callback_drawguess(struct lws *wsi, enum lws_callback_reasons reason,
         // Xử lý login
         if (strcmp(type, "login") == 0)
         {
-            const char *username = cJSON_GetObjectItem(json, "username")->valuestring;
-            const char *password = cJSON_GetObjectItem(json, "password")->valuestring;
+            const cJSON *u = cJSON_GetObjectItem(json, "username");
+            const cJSON *p = cJSON_GetObjectItem(json, "password");
+            const char *username = u ? u->valuestring : NULL;
+            const char *password = p ? p->valuestring : NULL;
 
             int user_id = db_login_user(username, password);
 
@@ -43,13 +49,20 @@ static int callback_drawguess(struct lws *wsi, enum lws_callback_reasons reason,
             cJSON_AddNumberToObject(response, "userId", user_id);
 
             char *resp_str = cJSON_PrintUnformatted(response);
-            unsigned char buf[LWS_PRE + 512];
-            size_t n = strlen(resp_str);
-            memcpy(&buf[LWS_PRE], resp_str, n);
-            lws_write(wsi, &buf[LWS_PRE], n, LWS_WRITE_TEXT);
+            if (resp_str)
+            {
+                size_t n = strlen(resp_str);
+                unsigned char *buf = malloc(LWS_PRE + n);
+                if (buf)
+                {
+                    memcpy(&buf[LWS_PRE], resp_str, n);
+                    lws_write(wsi, &buf[LWS_PRE], (int)n, LWS_WRITE_TEXT);
+                    free(buf);
+                }
+                free(resp_str);
+            }
 
             cJSON_Delete(response);
-            free(resp_str);
         }
 
         cJSON_Delete(json);
@@ -63,11 +76,16 @@ static int callback_drawguess(struct lws *wsi, enum lws_callback_reasons reason,
 }
 
 // Hàm khởi chạy WebSocket server
-void start_websocket_server(int port)
+int start_websocket_server(int port)
 {
     struct lws_protocols protocols[] = {
-        {"drawguess-protocol", callback_drawguess, 0, 4096},
-        {NULL, NULL, 0, 0}};
+        { .name = "drawguess-protocol",
+          .callback = callback_drawguess,
+          .per_session_data_size = 0,
+          .rx_buffer_size = 4096,
+          .id = 0 },
+        { .name = NULL, .callback = NULL, .per_session_data_size = 0, .rx_buffer_size = 0, .id = 0 }
+    };
 
     struct lws_context_creation_info info;
     memset(&info, 0, sizeof(info));
@@ -78,7 +96,7 @@ void start_websocket_server(int port)
     if (!context)
     {
         printf("❌ Không tạo được WebSocket context.\n");
-        return;
+        return -1;
     }
 
     printf("✅ WebSocket server đang chạy tại ws://localhost:%d\n", port);
@@ -87,4 +105,5 @@ void start_websocket_server(int port)
         lws_service(context, 100);
 
     lws_context_destroy(context);
+    return 0;
 }

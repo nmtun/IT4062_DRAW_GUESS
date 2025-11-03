@@ -6,7 +6,8 @@
 /**
  * Khởi chạy WebSocket server
  * @param port Cổng server sẽ lắng nghe
+ * @return Trả về 0 khi thành công, <0 khi lỗi
  */
-void start_websocket_server(int port);
+int start_websocket_server(int port);
 
-#endif
+#endif // WEBSOCKET_SERVER_H

@@ -5,14 +5,14 @@
 
 MYSQL *db_conn;
 
-int db_connect(const char *host, const char *user, const char *pass, const char *dbname) {
+int db_connect(const char *host, unsigned int port, const char *user, const char *pass, const char *dbname) {
     db_conn = mysql_init(NULL);
     if (db_conn == NULL) {
         fprintf(stderr, "mysql_init() failed\n");
         return 0;
     }
 
-    if (mysql_real_connect(db_conn, host, user, pass, dbname, 0, NULL, 0) == NULL) {
+    if (mysql_real_connect(db_conn, host, user, pass, dbname, port, NULL, 0) == NULL) {
         fprintf(stderr, "mysql_real_connect() failed: %s\n", mysql_error(db_conn));
         mysql_close(db_conn);
         return 0;

@@ -1,2 +1,12 @@
-compile project 
-gcc main.c database.c websocket_server.c -o server -lwebsockets -lmysqlclient -lcjson
+Hướng dẫn chạy project
+1. Cài đặt phụ thuộc
+    make install-deps
+2. Khởi động mysql container
+    docker compose up -d
+    docker compose ps (Kiểm tra xem container chạy hay chưa)
+3. Build chương trình
+    make
+4. chạy chương trình 
+    make run hoặc ./socket_server
+5. Khác
+    Kết nối mysql cli: mysql --protocol=TCP -h 127.0.0.1 -P 3308 -u root -p (pass: 123456)

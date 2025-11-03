@@ -4,7 +4,7 @@
 
 int main()
 {
-    if (!db_connect("localhost", "root", "123456", "draw_guess"))
+    if (!db_connect("127.0.0.1", 3308, "root", "123456", "draw_guess"))
     {
         printf("❌ Lỗi kết nối database\n");
         return 1;
