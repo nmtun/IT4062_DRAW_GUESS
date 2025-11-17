@@ -27,6 +27,7 @@ CC     = gcc
 CFLAGS = -Wall -Wextra -g
 
 SRC_DIR = server
+HEADER_DIR = include
 OBJ_DIR = build
 
 TARGET = main$(EXE)
@@ -44,7 +45,7 @@ all: $(TARGET)
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(SRC_DIR)/server.h | $(OBJ_DIR)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(HEADER_DIR)/server.h | $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Create build directory
