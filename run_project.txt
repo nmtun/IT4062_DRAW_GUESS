@@ -1,11 +1,17 @@
 cd src/
 
 0. Vào thư mục src:     cd src
+
+- Nếu chưa cài phụ thuộc:
 1. Cài đặt phụ thuộc:   make install-deps
+
+- Nếu chưa cài CSDL:
 2. Tạo cơ sở dữ liệu:   docker compose up -d 
+
+- Sau khi đã có đủ dependencies và database, tiến hành compile và chạy dự án
 3. Compile dự án:       make
 4. Chạy dự án:          ./main
 
 
-Truy cập vào cơ sở dữ liệu (bỏ qua bước này)
+Câu lệnh truy cập vào cơ sở dữ liệu (bỏ qua bước này)
     mysql --protocol=TCP -h 127.0.0.1 -P 3308 -u root -p (pass: 123456)
