@@ -57,6 +57,27 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     
+    // test đăng ký người dùng
+    // if (db) {
+    //     int res = register_user(db, "phucngu", "123456");
+    //     if (res == 0) {
+    //         printf("Đăng ký người dùng thành công\n");
+    //     } else {
+    //         printf("Đăng ký người dùng thất bại\n");
+    //     }
+    // }
+
+    // test đăng nhập người dùng
+    // if (db) {
+    //     int res = login_user(db, "phucngu", "123456");
+    //     if (res != -1) {
+    //         printf("Đăng nhập người dùng thành công\n");
+    //         printf("User ID: %d\n", res);
+    //     } else {
+    //         printf("Đăng nhập người dùng thất bại\n");
+    //     }
+    // }
+
     // Bắt đầu vòng lặp sự kiện
     server_event_loop(&server);
     

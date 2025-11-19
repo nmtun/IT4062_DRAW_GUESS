@@ -43,5 +43,23 @@ void db_disconnect(db_connection_t* db);
  */
 MYSQL_RES* db_execute_query(db_connection_t* db, const char* query, ...);
 
+/**
+ * Đăng ký người dùng mới
+ * @param db Con trỏ đến db_connection_t
+ * @param username Tên người dùng
+ * @param password Mật khẩu
+ * @return 0 nếu thành công, -1 nếu thất bại
+*/
+int register_user(db_connection_t* db, const char* username, const char* password);
+
+/**
+ * Đăng nhập người dùng
+ * @param db Con trỏ đến db_connection_t
+ * @param username Tên người dùng
+ * @param password Mật khẩu
+ * @return id người dùng nếu thành công, -1 nếu thất bại
+ */
+int login_user(db_connection_t* db, const char* username, const char* password);
+
 #endif // DATABASE_H
 
