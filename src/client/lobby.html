@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Draw & Guess - Phòng Chờ</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/lobby.css">
+</head>
+<body class="lobby-page">
+    <!-- Header -->
+    <header class="lobby-header">
+        <div class="header-logo">
+            <h1 class="logo-text">Draw & Guess</h1>
+        </div>
+        <div class="header-controls">
+            <button class="control-btn" id="soundBtn" title="Âm thanh">
+                <span class="icon">🔊</span>
+            </button>
+            <button class="control-btn" id="infoBtn" title="Thông tin">
+                <span class="icon">ℹ️</span>
+            </button>
+            <button class="control-btn" id="closeBtn" title="Đóng">
+                <span class="icon">✕</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Game Container -->
+    <div class="game-container">
+        <!-- Left Panel - Player List -->
+        <aside class="player-panel">
+            <div class="panel-header">
+                <h2>Người Chơi</h2>
+            </div>
+            <div class="player-list" id="playerList">
+                <!-- Player items will be added dynamically -->
+                <div class="player-item">
+                    <div class="player-avatar">
+                        <img src="css/assets/avatar/avatar-cute-2.jpg" alt="User4500">
+                    </div>
+                    <div class="player-info">
+                        <div class="player-name">User4500</div>
+                        <div class="player-score">0 điểm</div>
+                    </div>
+                </div>
+                <!-- Empty slots -->
+                <div class="player-item empty">
+                    <div class="player-avatar empty-avatar">
+                        <span class="empty-icon">👤</span>
+                    </div>
+                    <div class="player-info">
+                        <div class="player-name">Trống</div>
+                    </div>
+                </div>
+                <div class="player-item empty">
+                    <div class="player-avatar empty-avatar">
+                        <span class="empty-icon">👤</span>
+                    </div>
+                    <div class="player-info">
+                        <div class="player-name">Trống</div>
+                    </div>
+                </div>
+                <div class="player-item empty">
+                    <div class="player-avatar empty-avatar">
+                        <span class="empty-icon">👤</span>
+                    </div>
+                    <div class="player-info">
+                        <div class="player-name">Trống</div>
+                    </div>
+                </div>
+                <div class="player-item empty">
+                    <div class="player-avatar empty-avatar">
+                        <span class="empty-icon">👤</span>
+                    </div>
+                    <div class="player-info">
+                        <div class="player-name">Trống</div>
+                    </div>
+                </div>
+                <div class="player-item empty">
+                    <div class="player-avatar empty-avatar">
+                        <span class="empty-icon">👤</span>
+                    </div>
+                    <div class="player-info">
+                        <div class="player-name">Trống</div>
+                    </div>
+                </div>
+                <div class="player-item empty">
+                    <div class="player-avatar empty-avatar">
+                        <span class="empty-icon">👤</span>
+                    </div>
+                    <div class="player-info">
+                        <div class="player-name">Trống</div>
+                    </div>
+                </div>
+                <div class="player-item empty">
+                    <div class="player-avatar empty-avatar">
+                        <span class="empty-icon">👤</span>
+                    </div>
+                    <div class="player-info">
+                        <div class="player-name">Trống</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Right Panel - Game Area and Interaction -->
+        <div class="right-panel">
+            <!-- Game Panel -->
+            <main class="game-panel">
+                <div class="game-content">
+                    <div class="waiting-state">
+                        <h2 class="waiting-title">ĐANG CHỜ</h2>
+                        <div class="waiting-character">
+                            <div class="character-body">
+                                <div class="character-face">
+                                    <div class="eye left"></div>
+                                    <div class="eye right"></div>
+                                    <div class="glasses"></div>
+                                    <div class="mouth"></div>
+                                </div>
+                                <div class="character-clock">
+                                    <div class="clock-face">
+                                        <div class="clock-hand hour"></div>
+                                        <div class="clock-hand minute"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="waiting-message">Đang chờ người chơi</p>
+                    </div>
+                    <div class="game-watermark">Draw & Guess</div>
+                </div>
+            </main>
+
+            <!-- Interaction Panel - Answer and Chat -->
+            <div class="interaction-panel">
+                <!-- Answer Section -->
+                <div class="interaction-section answer-section">
+                    <div class="section-header">
+                        
+                        <h3 class="section-title">TRẢ LỜI</h3>
+                    </div>
+                    <div class="section-content">
+                        <div class="waiting-info">Đang chờ người chơi</div>
+                        <div class="input-group">
+                         
+                            <input 
+                                type="text" 
+                                id="answerInput" 
+                                class="answer-input" 
+                                placeholder="Đang chờ..." 
+                                disabled
+                            >
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Chat Section -->
+                <div class="interaction-section chat-section">
+                    <div class="section-header">
+                        
+                        <h3 class="section-title">TRÒ CHUYỆN</h3>
+                    </div>
+                    <div class="section-content">
+                        <div class="chat-messages" id="chatMessages">
+                            <!-- Chat messages will be added here -->
+                        </div>
+                        <div class="input-group">
+                           
+                            <input 
+                                type="text" 
+                                id="chatInput" 
+                                class="chat-input" 
+                                placeholder="Bạn phải đăng nhập để chat" 
+                                disabled
+                            >
+                        </div>
+                    </div>
+                </div>
+            </div>
+    </div>
+
+    <script src="js/network.js"></script>
+    <script src="js/lobby.js"></script>
+</body>
+</html>
+

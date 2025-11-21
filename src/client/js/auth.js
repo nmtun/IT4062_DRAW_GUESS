@@ -87,14 +87,15 @@ function handleLogin() {
     // Tạm thời hiển thị thông báo
     showSuccess('Đang xử lý đăng nhập...');
     
-    // Sau khi đăng nhập thành công, có thể redirect hoặc chuyển trang
-    // window.location.href = 'lobby.html';
+    // Sau khi đăng nhập thành công, chuyển đến trang lobby
+    setTimeout(() => {
+        window.location.href = 'lobby.html';
+    }, 1000);
 }
 
 // Xử lý đăng ký
 function handleRegister() {
     const username = document.getElementById('registerUsername').value.trim();
-    const email = document.getElementById('registerEmail').value.trim();
     const password = document.getElementById('registerPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
     
@@ -106,16 +107,6 @@ function handleRegister() {
     
     if (username.length < 3) {
         showError('Tài khoản phải có ít nhất 3 ký tự!');
-        return;
-    }
-    
-    if (!email) {
-        showError('Vui lòng nhập email!');
-        return;
-    }
-    
-    if (!isValidEmail(email)) {
-        showError('Email không hợp lệ!');
         return;
     }
     
@@ -135,16 +126,16 @@ function handleRegister() {
     }
     
     // TODO: Gửi request đăng ký đến server
-    console.log('Đăng ký:', { username, email, password });
+    console.log('Đăng ký:', { username, password });
     
     // Tạm thời hiển thị thông báo
     showSuccess('Đang xử lý đăng ký...');
     
-    // Sau khi đăng ký thành công, có thể chuyển sang tab đăng nhập
-    // setTimeout(() => {
-    //     document.querySelector('[data-tab="login"]').click();
-    //     showSuccess('Đăng ký thành công! Vui lòng đăng nhập.');
-    // }, 1000);
+    // Sau khi đăng ký thành công, chuyển sang tab đăng nhập
+    setTimeout(() => {
+        document.querySelector('[data-tab="login"]').click();
+        showSuccess('Đăng ký thành công! Vui lòng đăng nhập.');
+    }, 1000);
 }
 
 // Kiểm tra email hợp lệ

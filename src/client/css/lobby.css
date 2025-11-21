@@ -1,0 +1,610 @@
+/* .lobby-page {
+    background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+} */
+
+body.lobby-page {
+    overflow: hidden;
+}
+
+/* Background Pattern */
+.lobby-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><circle cx="50" cy="50" r="2" fill="white" opacity="0.3"/></svg>'),
+        url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><path d="M40,20 L50,40 L30,40 Z" fill="white" opacity="0.2"/></svg>'),
+        url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60"><rect x="20" y="20" width="20" height="20" fill="white" opacity="0.15"/></svg>');
+    background-size: 50px 50px, 80px 80px, 60px 60px;
+    background-position: 0 0, 25px 25px, 40px 40px;
+    opacity: 0.4;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* Header */
+.lobby-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 20px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    position: relative;
+    z-index: 10;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
+}
+
+.header-logo .logo-text {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    margin: 0;
+}
+
+.header-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.control-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+    backdrop-filter: blur(5px);
+}
+
+.control-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+.control-btn .icon {
+    font-size: 1rem;
+    filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.2));
+}
+
+/* Game Container */
+.game-container {
+    display: flex;
+    flex: 1;
+    gap: 12px;
+    padding: 10px;
+    position: relative;
+    z-index: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Player Panel */
+.player-panel {
+    width: 240px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.panel-header {
+    padding: 8px 12px;
+    background: linear-gradient(135deg, yellow 0%, yellow 100%);
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
+}
+
+.panel-header h2 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.player-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px;
+    min-height: 0;
+}
+
+.player-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px;
+    margin-bottom: 4px;
+    border-radius: 8px;
+    transition: background 0.3s;
+}
+
+.player-item:not(.empty):hover {
+    background: #f0f0f0;
+}
+
+.player-item.empty {
+    opacity: 0.5;
+}
+
+.player-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 2px solid #4a90e2;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.player-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.empty-avatar {
+    background: #e0e0e0;
+    border-color: #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.empty-icon {
+    font-size: 1.1rem;
+    opacity: 0.5;
+}
+
+.player-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.player-name {
+    font-weight: bold;
+    color: #333;
+    font-size: 1rem;
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-score {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+/* Right Panel - Contains Game and Interaction */
+.right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    min-height: 0;
+}
+
+/* Game Panel */
+.game-panel {
+    flex: 1;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    min-height: 0;
+}
+
+.game-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 15px;
+    min-height: 0;
+}
+
+.waiting-state {
+    text-align: center;
+    z-index: 2;
+}
+
+.waiting-title {
+    font-size: 2rem;
+    font-weight: bold;
+    color: yellow;
+    margin-bottom: 15px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+    letter-spacing: 2px;
+}
+
+.waiting-character {
+    margin: 15px 0;
+    display: flex;
+    justify-content: center;
+}
+
+.character-body {
+    position: relative;
+    width: 120px;
+    height: 150px;
+}
+
+.character-face {
+    width: 90px;
+    height: 90px;
+    background: yellow;
+    border-radius: 15px;
+    position: relative;
+    margin: 0 auto;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.eye {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: white;
+    border-radius: 50%;
+    top: 30px;
+}
+
+.eye.left {
+    left: 25px;
+}
+
+.eye.right {
+    right: 25px;
+}
+
+.glasses {
+    position: absolute;
+    width: 70px;
+    height: 35px;
+    border: 3px solid #333;
+    border-radius: 50%;
+    top: 28px;
+    left: 10px;
+    box-shadow: inset 0 0 0 1px #333;
+}
+
+.glasses::after {
+    content: '';
+    position: absolute;
+    width: 2px;
+    height: 12px;
+    background: #333;
+    top: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.mouth {
+    position: absolute;
+    width: 25px;
+    height: 12px;
+    border: 2px solid #333;
+    border-top: none;
+    border-radius: 0 0 25px 25px;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.character-clock {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 50px;
+    height: 50px;
+    background: #ffd700;
+    border-radius: 50%;
+    border: 3px solid #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.clock-face {
+    position: relative;
+    width: 38px;
+    height: 38px;
+    border: 2px solid #333;
+    border-radius: 50%;
+}
+
+.clock-hand {
+    position: absolute;
+    background: #333;
+    left: 50%;
+    top: 50%;
+    transform-origin: bottom center;
+}
+
+.clock-hand.hour {
+    width: 2px;
+    height: 12px;
+    transform: translateX(-50%) translateY(-100%) rotate(45deg);
+}
+
+.clock-hand.minute {
+    width: 1.5px;
+    height: 15px;
+    transform: translateX(-50%) translateY(-100%) rotate(90deg);
+}
+
+.waiting-message {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 10px;
+    font-weight: 500;
+}
+
+.game-watermark {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    font-size: 2rem;
+    font-weight: bold;
+    color: rgba(74, 144, 226, 0.1);
+    z-index: 1;
+    pointer-events: none;
+    user-select: none;
+}
+
+/* Interaction Panel */
+.interaction-panel {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+    position: relative;
+    z-index: 10;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    padding: 10px;
+    min-height: 0;
+}
+
+.interaction-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    border-radius: 8px;
+    background: #f8f8f8;
+    overflow: hidden;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+    color: white;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.section-icon {
+    font-size: 1.2rem;
+}
+
+.section-title {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.section-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.waiting-info {
+    text-align: center;
+    color: #666;
+    font-size: 0.75rem;
+    margin-bottom: 8px;
+    padding: 6px;
+    background: white;
+    border-radius: 6px;
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f8f8f8;
+    border-radius: 8px;
+    padding: 8px 10px;
+    border: 2px solid #e0e0e0;
+    transition: border-color 0.3s;
+}
+
+.input-group:focus-within {
+    border-color: #4a90e2;
+    background: white;
+}
+
+.input-icon {
+    font-size: 1rem;
+    opacity: 0.6;
+}
+
+.answer-input,
+.chat-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 0.85rem;
+    color: #333;
+    outline: none;
+}
+
+.answer-input:disabled,
+.chat-input:disabled {
+    color: #999;
+    cursor: not-allowed;
+}
+
+.answer-input::placeholder,
+.chat-input::placeholder {
+    color: #999;
+}
+
+/* Chat Messages */
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 8px;
+    padding: 6px;
+    background: white;
+    border-radius: 6px;
+    min-height: 0;
+}
+
+.chat-message {
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    border-radius: 6px;
+    background: white;
+    font-size: 0.8rem;
+}
+
+.chat-message .message-author {
+    font-weight: bold;
+    color: #4a90e2;
+    margin-right: 8px;
+}
+
+.chat-message .message-text {
+    color: #333;
+}
+
+/* Scrollbar Styling */
+.player-list::-webkit-scrollbar,
+.chat-messages::-webkit-scrollbar {
+    width: 8px;
+}
+
+.player-list::-webkit-scrollbar-track,
+.chat-messages::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.player-list::-webkit-scrollbar-thumb,
+.chat-messages::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.player-list::-webkit-scrollbar-thumb:hover,
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .game-container {
+        flex-direction: column;
+    }
+
+    .player-panel {
+        width: 100%;
+        max-height: 200px;
+    }
+
+    .right-panel {
+        width: 100%;
+    }
+
+    .player-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .player-item {
+        flex: 0 0 calc(25% - 10px);
+        min-width: 150px;
+    }
+}
+
+@media (max-width: 768px) {
+    .lobby-header {
+        padding: 10px 15px;
+    }
+
+    .header-logo .logo-text {
+        font-size: 1.5rem;
+    }
+
+    .game-container {
+        padding: 10px;
+    }
+
+    .waiting-title {
+        font-size: 2rem;
+    }
+
+    .character-body {
+        width: 150px;
+        height: 200px;
+    }
+
+    .character-face {
+        width: 120px;
+        height: 120px;
+    }
+
+    .right-panel {
+        gap: 8px;
+    }
+
+    .tab-button {
+        padding: 12px 10px;
+        font-size: 0.9rem;
+    }
+
+    .tab-icon {
+        font-size: 1rem;
+    }
+}
+
