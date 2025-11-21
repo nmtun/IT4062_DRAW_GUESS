@@ -164,19 +164,15 @@ MYSQL_RES* db_execute_query(db_connection_t* db, const char* query, ...) {
     return res;
 }
 
-int register_user(db_connection_t* db, const char* username, const char* password) {
+int register_user(db_connection_t* db, const char* username, 
+                  const char* password_hash) {
     if (!db) {
         fprintf(stderr, "Không kết nối được tới cơ sở dữ liệu.\n");
         return -1;
     }
 
-    if (!username) {
-        fprintf(stderr, "Phải nhập tên người dùng.\n");
-        return -1;
-    }
-
-    if (!password) {
-        fprintf(stderr, "Phải nhập mật khẩu.\n");
+    if (!username || !password_hash) {
+        fprintf(stderr, "Username và password không được để trống.\n");
         return -1;
     }
 
@@ -185,53 +181,61 @@ int register_user(db_connection_t* db, const char* username, const char* passwor
     MYSQL_RES* check_res = db_execute_query(db, check_query, username);
     if (check_res && mysql_fetch_row(check_res)) {
         mysql_free_result(check_res);
-        fprintf(stderr, "Tên người dùng đã tồn tại.\n");
+        fprintf(stderr, "Tên người dùng '%s' đã tồn tại.\n", username);
         return -1;
     }
     if (check_res) mysql_free_result(check_res);
     
-    const char* query = "INSERT INTO users (username, password) VALUES (?, ?)";
-    MYSQL_RES* result = db_execute_query(db, query, username, password);
+    // Insert user mới
+    const char* insert_query = "INSERT INTO users (username, password_hash) VALUES (?, ?)";
+    MYSQL_RES* result = db_execute_query(db, insert_query, username, password_hash);
     
-    // Kiểm tra lỗi
     if (mysql_errno(db->conn)) {
         fprintf(stderr, "Lỗi đăng ký người dùng: %s\n", mysql_error(db->conn));
-        if ( result ) mysql_free_result(result);
+        if (result) mysql_free_result(result);
         return -1;
     }
     
-    mysql_free_result(result);
-    return 0;
+    // Lấy user_id vừa insert
+    int user_id = (int)mysql_insert_id(db->conn);
+    
+    if (result) mysql_free_result(result);
+    
+    printf("Đăng ký thành công: user_id=%d, username=%s\n", user_id, username);
+    return user_id;
 }
 
-int login_user(db_connection_t* db, const char* username, const char* password) {
+int login_user(db_connection_t* db, const char* username, 
+               const char* password_hash) {
     if (!db) {
         fprintf(stderr, "Không kết nối được tới cơ sở dữ liệu.\n");
         return -1;
     }
-    if (!username) {
-        fprintf(stderr, "Phải nhập tên người dùng.\n");
-        return -1;
-    }
-    if (!password) {
-        fprintf(stderr, "Phải nhập mật khẩu.\n");
+    
+    if (!username || !password_hash) {
+        fprintf(stderr, "Username và password không được để trống.\n");
         return -1;
     }
 
-    const char* query = "SELECT id FROM users WHERE username = ? AND password = ?";
-    MYSQL_RES* result = db_execute_query(db, query, username, password);
+    // Xác thực user
+    const char* query = "SELECT id FROM users WHERE username = ? AND password_hash = ?";
+    MYSQL_RES* result = db_execute_query(db, query, username, password_hash);
+    
     if (!result) {
-        fprintf(stderr, "Lỗi truy vấn hoặc không có kết quả.\n");
+        fprintf(stderr, "Không thể thực thi query xác thực.\n");
         return -1;
     }
 
     MYSQL_ROW row = mysql_fetch_row(result);
-    if (row) {
-        mysql_free_result(result);
-        return atoi(row[0]);  // Trả về id người dùng
-    } else {
+    if (!row) {
         mysql_free_result(result);
         fprintf(stderr, "Tên người dùng hoặc mật khẩu không đúng.\n");
         return -1;
     }
+    
+    int user_id = atoi(row[0]);
+    mysql_free_result(result);
+    
+    printf("Đăng nhập thành công: user_id=%d, username=%s\n", user_id, username);
+    return user_id;
 }

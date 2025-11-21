@@ -1,5 +1,6 @@
 #include "../include/server.h"
 #include "../include/database.h"
+#include "../include/auth.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -57,26 +58,29 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     
-    // test đăng ký người dùng
-    // if (db) {
-    //     int res = register_user(db, "phucngu", "123456");
-    //     if (res == 0) {
-    //         printf("Đăng ký người dùng thành công\n");
-    //     } else {
-    //         printf("Đăng ký người dùng thất bại\n");
-    //     }
-    // }
-
-    // test đăng nhập người dùng
-    // if (db) {
-    //     int res = login_user(db, "phucngu", "123456");
-    //     if (res != -1) {
-    //         printf("Đăng nhập người dùng thành công\n");
-    //         printf("User ID: %d\n", res);
-    //     } else {
-    //         printf("Đăng nhập người dùng thất bại\n");
-    //     }
-    // }
+    //Test authentication module
+    if (db) {
+        
+        // Test đăng ký
+        char hash[65];
+        auth_hash_password("mypass123", hash);
+        int user_id = register_user(db, "demo_user", hash);
+        if(user_id > 0) {
+            printf("Đăng ký thành công: ID=%d\n", user_id);
+        } else {
+            printf("Đăng ký thất bại\n");
+        }
+        
+        // Test đăng nhập đúng
+        auth_hash_password("mypass123", hash);
+        login_user(db, "demo_user", hash); 
+        
+        // Test đăng nhập sai
+        auth_hash_password("wrongpass", hash);
+        int wrong_id =login_user(db, "demo_user", hash);
+        printf("Đăng nhập thất bại, ID trả về: %d\n", wrong_id);
+        
+    }
 
     // Bắt đầu vòng lặp sự kiện
     server_event_loop(&server);

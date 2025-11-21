@@ -47,6 +47,9 @@ ZSTD_LIB_DIR := $(shell find /opt/homebrew/Cellar/zstd/*/lib /opt/homebrew/opt/z
 # Tìm OpenSSL lib directory (cần cho MySQL)
 SSL_LIB_DIR := $(shell find /opt/homebrew/opt/openssl*/lib /usr/local/opt/openssl*/lib -type d 2>/dev/null | head -1)
 
+# Tìm OpenSSL include directory (cần cho auth.c)
+SSL_INCLUDE := $(shell find /opt/homebrew/opt/openssl*/include /usr/local/opt/openssl*/include -name "openssl" -type d 2>/dev/null | head -1 | xargs dirname)
+
 # Thêm flags nếu tìm thấy
 ifneq ($(MYSQL_INCLUDE),)
     CFLAGS += -I$(MYSQL_INCLUDE)
@@ -62,6 +65,10 @@ endif
 
 ifneq ($(SSL_LIB_DIR),)
     LDFLAGS += -L$(SSL_LIB_DIR)
+endif
+
+ifneq ($(SSL_INCLUDE),)
+    CFLAGS += -I$(SSL_INCLUDE)
 endif
 
 # Thêm đường dẫn Homebrew mặc định cho macOS
@@ -107,7 +114,7 @@ OBJ_DIR = build
 TARGET = main$(EXE)
 
 # Source files
-SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/server.c $(SRC_DIR)/database.c
+SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/server.c $(SRC_DIR)/database.c $(SRC_DIR)/auth.c
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
 # ============================
@@ -124,7 +131,7 @@ $(TARGET): $(OBJS)
 	@echo "Build successful!"
 
 # Luật build object files
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(HEADER_DIR)/server.h $(HEADER_DIR)/database.h | $(OBJ_DIR)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(HEADER_DIR)/server.h $(HEADER_DIR)/database.h $(HEADER_DIR)/auth.h | $(OBJ_DIR)
 	@echo "Compiling $<..."
 	$(CC) $(CFLAGS) -I$(HEADER_DIR) -c $< -o $@
 
