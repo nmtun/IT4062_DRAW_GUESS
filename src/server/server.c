@@ -1,4 +1,5 @@
 #include "../include/server.h"
+#include "../include/protocol.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,6 +68,9 @@ int server_add_client(server_t *server, int client_fd) {
         if (!server->clients[i].active) {
             server->clients[i].fd = client_fd;
             server->clients[i].active = 1;
+            server->clients[i].user_id = -1;
+            server->clients[i].username[0] = '\0';
+            server->clients[i].state = CLIENT_STATE_LOGGED_OUT;
             server->client_count++;
             
             //Cập nhật max_fd mới nếu cần để select() hoạt động đúng
@@ -90,6 +94,9 @@ void server_remove_client(server_t *server, int client_index) {
         close(server->clients[client_index].fd);
         server->clients[client_index].active = 0;
         server->clients[client_index].fd = -1;
+        server->clients[client_index].user_id = -1;
+        server->clients[client_index].username[0] = '\0';
+        server->clients[client_index].state = CLIENT_STATE_LOGGED_OUT;
         server->client_count--;
         printf("Client đã ngắt kết nối (index: %d)\n", client_index);
     }
@@ -115,10 +122,10 @@ int server_accept_client(server_t *server) {
 
 // Xử lý dữ liệu từ client
 void server_handle_client_data(server_t *server, int client_index) {
-    char buffer[BUFFER_SIZE];
+    uint8_t buffer[BUFFER_SIZE];
     int client_fd = server->clients[client_index].fd;
     
-    ssize_t bytes_read = recv(client_fd, buffer, BUFFER_SIZE - 1, 0);
+    ssize_t bytes_read = recv(client_fd, buffer, BUFFER_SIZE, 0);
     
     if (bytes_read <= 0) {
         // Lỗi hoặc kết nối đóng
@@ -126,12 +133,19 @@ void server_handle_client_data(server_t *server, int client_index) {
         return;
     }
     
-    buffer[bytes_read] = '\0';
-    printf("Nhận dữ liệu từ client %d: %s\n", client_index, buffer);
-    
-    // TODO: Xử lý dữ liệu theo protocol, cần hoàn thiện thêm các message type khác
-    // Ở đây chỉ echo lại cho client
-    send(client_fd, buffer, bytes_read, 0);
+    // Parse message
+    message_t msg;
+    if (protocol_parse_message(buffer, bytes_read, &msg) == 0) {
+        // Xử lý message
+        protocol_handle_message(server, client_index, &msg);
+        
+        // Giải phóng payload
+        if (msg.payload) {
+            free(msg.payload);
+        }
+    } else {
+        fprintf(stderr, "Lỗi parse message từ client %d\n", client_index);
+    }
 }
 
 // Xử lý ngắt kết nối

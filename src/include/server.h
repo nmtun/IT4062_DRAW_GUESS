@@ -9,10 +9,21 @@
 #define BUFFER_SIZE 1024
 #define DEFAULT_PORT 8080
 
+// Trạng thái client
+typedef enum {
+    CLIENT_STATE_LOGGED_OUT = 0,
+    CLIENT_STATE_LOGGED_IN = 1,
+    CLIENT_STATE_IN_ROOM = 2,
+    CLIENT_STATE_IN_GAME = 3
+} client_state_t;
+
 // Cấu trúc client
 typedef struct {
     int fd;
     int active;
+    int user_id;                    // -1 nếu chưa đăng nhập
+    char username[32];              // Username (null-terminated)
+    client_state_t state;           // Trạng thái hiện tại
 } client_t;
 
 // Cấu trúc server

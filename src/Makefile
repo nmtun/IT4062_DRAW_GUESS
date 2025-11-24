@@ -114,7 +114,7 @@ OBJ_DIR = build
 TARGET = main$(EXE)
 
 # Source files
-SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/server.c $(SRC_DIR)/database.c $(SRC_DIR)/auth.c
+SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/server.c $(SRC_DIR)/database.c $(SRC_DIR)/auth.c $(SRC_DIR)/protocol.c
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
 # ============================
@@ -125,15 +125,22 @@ all: $(TARGET)
 	@echo "Built for: $(PLATFORM)"
 	@echo "Executable: $(TARGET)"
 
+# Test client
+# Tắt flag sinh ra .dSYM và .yml cho target này (không dùng -g, không sinh debug info)
+test_client: test_client.c
+	@echo "Building test client..."
+	$(CC) -Wall -Wextra -O2 -I$(HEADER_DIR) -Icommon test_client.c -o test_client
+	@echo "Test client built: ./test_client"
+
 $(TARGET): $(OBJS)
 	@echo "Linking $(TARGET)..."
 	$(CC) $(OBJS) -o $@ $(LDFLAGS)
 	@echo "Build successful!"
 
 # Luật build object files
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(HEADER_DIR)/server.h $(HEADER_DIR)/database.h $(HEADER_DIR)/auth.h | $(OBJ_DIR)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 	@echo "Compiling $<..."
-	$(CC) $(CFLAGS) -I$(HEADER_DIR) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(HEADER_DIR) -Icommon -c $< -o $@
 
 # Create build directory
 $(OBJ_DIR):
@@ -148,6 +155,7 @@ clean:
 	@echo "Cleaning build artifacts..."
 	$(RM) $(OBJ_DIR)/*.o
 	$(RM) $(TARGET)
+	$(RM) test_client
 	@echo "Clean complete!"
 
 # ============================
