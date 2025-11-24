@@ -114,8 +114,13 @@ OBJ_DIR = build
 TARGET = main$(EXE)
 
 # Source files
-SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/server.c $(SRC_DIR)/database.c $(SRC_DIR)/auth.c $(SRC_DIR)/protocol.c
+SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/server.c $(SRC_DIR)/database.c $(SRC_DIR)/auth.c $(SRC_DIR)/protocol.c $(SRC_DIR)/room.c
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+
+# Test room
+TEST_ROOM = test_room$(EXE)
+TEST_ROOM_SRC = test_room.c
+TEST_ROOM_OBJS = $(OBJ_DIR)/room.o
 
 # ============================
 #  Build rules
@@ -131,6 +136,13 @@ test_client: test_client.c
 	@echo "Building test client..."
 	$(CC) -Wall -Wextra -O2 -I$(HEADER_DIR) -Icommon test_client.c -o test_client
 	@echo "Test client built: ./test_client"
+
+# Test room module
+test_room: $(TEST_ROOM_OBJS) $(TEST_ROOM_SRC)
+	@echo "Building room module test..."
+	$(CC) $(CFLAGS) -I$(HEADER_DIR) $(TEST_ROOM_SRC) $(TEST_ROOM_OBJS) -o $(TEST_ROOM)
+	@echo "Test room built: ./$(TEST_ROOM)"
+	@echo "Run with: ./$(TEST_ROOM)"
 
 $(TARGET): $(OBJS)
 	@echo "Linking $(TARGET)..."
@@ -156,6 +168,7 @@ clean:
 	$(RM) $(OBJ_DIR)/*.o
 	$(RM) $(TARGET)
 	$(RM) test_client
+	$(RM) $(TEST_ROOM)
 	@echo "Clean complete!"
 
 # ============================

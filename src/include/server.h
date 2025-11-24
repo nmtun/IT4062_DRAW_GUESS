@@ -4,8 +4,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/select.h>
+#include "room.h"
 
 #define MAX_CLIENTS 100
+#define MAX_ROOMS 50
 #define BUFFER_SIZE 1024
 #define DEFAULT_PORT 8080
 
@@ -27,12 +29,14 @@ typedef struct {
 } client_t;
 
 // Cấu trúc server
-typedef struct {
+typedef struct server {
     int socket_fd;
     int port;
     struct sockaddr_in address;
     client_t clients[MAX_CLIENTS];
     int client_count;
+    room_t* rooms[MAX_ROOMS];       // Mảng con trỏ đến các phòng
+    int room_count;                  // Số phòng hiện tại
     fd_set read_fds;
     int max_fd;
 } server_t;
