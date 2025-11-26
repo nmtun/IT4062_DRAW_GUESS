@@ -1,0 +1,21 @@
+{
+  "name": "draw-guess-websocket-gateway",
+  "version": "1.0.0",
+  "description": "WebSocket Gateway cho Draw & Guess game",
+  "main": "websocket-gateway.js",
+  "scripts": {
+    "start": "node websocket-gateway.js"
+  },
+  "dependencies": {
+    "ws": "^8.14.2"
+  },
+  "keywords": [
+    "websocket",
+    "gateway",
+    "tcp"
+  ],
+  "author": "",
+  "license": "ISC"
+}
+
+

@@ -3,11 +3,11 @@
         {
             "name": "Mac",
             "includePath": [
-                "${workspaceFolder}/**"
-                // "/opt/homebrew/include",
-                // "/opt/homebrew/opt/libwebsockets/include",
-                // "/opt/homebrew/opt/mysql-client/include",
-                // "/opt/homebrew/opt/cjson/include"
+                "${workspaceFolder}/**",
+                "/opt/homebrew/include",
+                "/opt/homebrew/opt/libwebsockets/include",
+                "/opt/homebrew/opt/mysql-client/include/mysql",
+                "/opt/homebrew/opt/cjson/include"
             ],
             "defines": [],
             "macFrameworkPath": [],

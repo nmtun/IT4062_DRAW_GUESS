@@ -34,73 +34,7 @@
                 <h2>Người Chơi</h2>
             </div>
             <div class="player-list" id="playerList">
-                <!-- Player items will be added dynamically -->
-                <div class="player-item">
-                    <div class="player-avatar">
-                        <img src="css/assets/avatar/avatar-cute-2.jpg" alt="User4500">
-                    </div>
-                    <div class="player-info">
-                        <div class="player-name">User4500</div>
-                        <div class="player-score">0 điểm</div>
-                    </div>
-                </div>
-                <!-- Empty slots -->
-                <div class="player-item empty">
-                    <div class="player-avatar empty-avatar">
-                        <span class="empty-icon">👤</span>
-                    </div>
-                    <div class="player-info">
-                        <div class="player-name">Trống</div>
-                    </div>
-                </div>
-                <div class="player-item empty">
-                    <div class="player-avatar empty-avatar">
-                        <span class="empty-icon">👤</span>
-                    </div>
-                    <div class="player-info">
-                        <div class="player-name">Trống</div>
-                    </div>
-                </div>
-                <div class="player-item empty">
-                    <div class="player-avatar empty-avatar">
-                        <span class="empty-icon">👤</span>
-                    </div>
-                    <div class="player-info">
-                        <div class="player-name">Trống</div>
-                    </div>
-                </div>
-                <div class="player-item empty">
-                    <div class="player-avatar empty-avatar">
-                        <span class="empty-icon">👤</span>
-                    </div>
-                    <div class="player-info">
-                        <div class="player-name">Trống</div>
-                    </div>
-                </div>
-                <div class="player-item empty">
-                    <div class="player-avatar empty-avatar">
-                        <span class="empty-icon">👤</span>
-                    </div>
-                    <div class="player-info">
-                        <div class="player-name">Trống</div>
-                    </div>
-                </div>
-                <div class="player-item empty">
-                    <div class="player-avatar empty-avatar">
-                        <span class="empty-icon">👤</span>
-                    </div>
-                    <div class="player-info">
-                        <div class="player-name">Trống</div>
-                    </div>
-                </div>
-                <div class="player-item empty">
-                    <div class="player-avatar empty-avatar">
-                        <span class="empty-icon">👤</span>
-                    </div>
-                    <div class="player-info">
-                        <div class="player-name">Trống</div>
-                    </div>
-                </div>
+                <!-- Player items will be added dynamically by JavaScript -->
             </div>
         </aside>
 
@@ -127,7 +61,7 @@
                                 </div>
                             </div>
                         </div>
-                        <p class="waiting-message">Đang chờ người chơi</p>
+                        <p class="waiting-message"></p>
                     </div>
                     <div class="game-watermark">Draw & Guess</div>
                 </div>
@@ -142,14 +76,13 @@
                         <h3 class="section-title">TRẢ LỜI</h3>
                     </div>
                     <div class="section-content">
-                        <div class="waiting-info">Đang chờ người chơi</div>
+                        <div class="waiting-info"></div>
                         <div class="input-group">
-                         
                             <input 
                                 type="text" 
                                 id="answerInput" 
                                 class="answer-input" 
-                                placeholder="Đang chờ..." 
+                                placeholder="" 
                                 disabled
                             >
                         </div>
@@ -172,7 +105,7 @@
                                 type="text" 
                                 id="chatInput" 
                                 class="chat-input" 
-                                placeholder="Bạn phải đăng nhập để chat" 
+                                placeholder="" 
                                 disabled
                             >
                         </div>
@@ -181,8 +114,7 @@
             </div>
     </div>
 
-    <script src="js/network.js"></script>
-    <script src="js/lobby.js"></script>
+    <script type="module" src="js/lobby.js"></script>
 </body>
 </html>
 

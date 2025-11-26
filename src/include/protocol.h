@@ -1,0 +1,69 @@
+#ifndef PROTOCOL_HANDLER_H
+#define PROTOCOL_HANDLER_H
+
+#include "../common/protocol.h"
+#include "server.h"
+#include "database.h"
+
+/**
+ * Parse message từ buffer nhận được
+ * @param buffer Buffer chứa raw data từ socket
+ * @param buffer_len Độ dài của buffer
+ * @param msg_out Con trỏ đến message_t để lưu kết quả parse
+ * @return 0 nếu thành công, -1 nếu lỗi
+ * 
+ * Note: Hàm này sẽ cấp phát bộ nhớ cho msg_out->payload
+ * Caller phải free() sau khi sử dụng xong
+ */
+int protocol_parse_message(const uint8_t* buffer, size_t buffer_len, message_t* msg_out);
+
+/**
+ * Tạo message theo format protocol
+ * @param type Message type
+ * @param payload Dữ liệu payload
+ * @param payload_len Độ dài payload
+ * @param buffer_out Buffer để lưu message đã tạo (phải đủ lớn)
+ * @return Tổng độ dài message (3 + payload_len) nếu thành công, -1 nếu lỗi
+ */
+int protocol_create_message(uint8_t type, const uint8_t* payload, uint16_t payload_len, uint8_t* buffer_out);
+
+/**
+ * Xử lý message nhận được từ client
+ * @param server Con trỏ đến server_t
+ * @param client_index Index của client trong server->clients[]
+ * @param msg Message đã được parse
+ * @return 0 nếu thành công, -1 nếu lỗi
+ */
+int protocol_handle_message(server_t* server, int client_index, const message_t* msg);
+
+/**
+ * Gửi LOGIN_RESPONSE đến client
+ * @param client_fd File descriptor của client socket
+ * @param status Status code (STATUS_SUCCESS hoặc STATUS_ERROR)
+ * @param user_id User ID (hoặc -1 nếu thất bại)
+ * @param username Username
+ * @return 0 nếu thành công, -1 nếu lỗi
+ */
+int protocol_send_login_response(int client_fd, uint8_t status, int32_t user_id, const char* username);
+
+/**
+ * Gửi REGISTER_RESPONSE đến client
+ * @param client_fd File descriptor của client socket
+ * @param status Status code (STATUS_SUCCESS hoặc STATUS_ERROR)
+ * @param message Thông báo (lỗi hoặc thành công)
+ * @return 0 nếu thành công, -1 nếu lỗi
+ */
+int protocol_send_register_response(int client_fd, uint8_t status, const char* message);
+
+/**
+ * Helper function: Gửi message đến client
+ * @param client_fd File descriptor của client socket
+ * @param type Message type
+ * @param payload Payload data
+ * @param payload_len Payload length
+ * @return 0 nếu thành công, -1 nếu lỗi
+ */
+int protocol_send_message(int client_fd, uint8_t type, const uint8_t* payload, uint16_t payload_len);
+
+#endif // PROTOCOL_HANDLER_H
+

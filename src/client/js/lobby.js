@@ -1,22 +1,125 @@
 // Lobby page functionality
-document.addEventListener('DOMContentLoaded', function() {
-    initLobbyTabs();
-    initLobbyControls();
-});
 
-// Initialize tab switching
+import {
+    MESSAGES,
+    ICONS,
+    NAV,
+    STORAGE_KEYS,
+    CONFIG,
+    SELECTORS
+} from './lobby-constants.js';
+
+import {
+    createPlayerItem,
+    createEmptyPlayerSlot,
+    initializePlayerList,
+    findEmptySlot,
+    findPlayerByUsername
+} from './lobby-utils.js';
+
+// DOM Cache
+let domCache = {
+    playerList: null,
+    chatMessages: null,
+    chatInput: null,
+    answerInput: null,
+    waitingMessage: null,
+    soundBtn: null,
+    infoBtn: null,
+    closeBtn: null
+};
+
+// State
+let isSoundEnabled = true;
+
+/**
+ * Cache DOM elements
+ */
+function cacheDOM() {
+    domCache.playerList = document.querySelector(SELECTORS.PLAYER_LIST);
+    domCache.chatMessages = document.querySelector(SELECTORS.CHAT_MESSAGES);
+    domCache.chatInput = document.querySelector(SELECTORS.CHAT_INPUT);
+    domCache.answerInput = document.querySelector(SELECTORS.ANSWER_INPUT);
+    domCache.waitingMessage = document.querySelector(SELECTORS.WAITING_MESSAGE);
+    domCache.soundBtn = document.querySelector(SELECTORS.SOUND_BTN);
+    domCache.infoBtn = document.querySelector(SELECTORS.INFO_BTN);
+    domCache.closeBtn = document.querySelector(SELECTORS.CLOSE_BTN);
+}
+
+/**
+ * Kiểm tra authentication
+ */
+function checkAuthentication() {
+    const isLoggedIn = sessionStorage.getItem(STORAGE_KEYS.IS_LOGGED_IN);
+    const userId = sessionStorage.getItem(STORAGE_KEYS.USER_ID);
+    const username = sessionStorage.getItem(STORAGE_KEYS.USERNAME);
+
+    if (!isLoggedIn || !userId || !username) {
+        // Chưa đăng nhập, chuyển về trang login
+        alert(MESSAGES.AUTH_REQUIRED);
+        window.location.href = NAV.INDEX;
+        return false;
+    }
+
+    // Đã đăng nhập, enable chat input
+    enableChatInput();
+
+    // Cập nhật thông tin user trong player list
+    updateCurrentUserInfo(username);
+
+    // Đảm bảo socket connection được duy trì
+    // Socket sẽ tự động được giữ lại từ lần đăng nhập trước
+    if (window.Network && window.Network.isServerConnected) {
+        const isConnected = window.Network.isServerConnected();
+        if (!isConnected) {
+            // Nếu socket bị mất, tự động kết nối lại
+            console.log('Socket disconnected, reconnecting...');
+            window.Network.connectToServer().catch(err => {
+                console.error('Failed to reconnect:', err);
+            });
+        } else {
+            console.log('Socket connection maintained');
+        }
+    }
+
+    return true;
+}
+
+/**
+ * Cập nhật thông tin user hiện tại
+ * @param {string} username 
+ */
+function updateCurrentUserInfo(username) {
+    if (!domCache.playerList) return;
+
+    const emptySlot = findEmptySlot(domCache.playerList);
+    if (emptySlot) {
+        // Replace empty slot với current user
+        const playerData = {
+            username: username,
+            avatar: CONFIG.DEFAULT_AVATAR,
+            score: CONFIG.DEFAULT_SCORE
+        };
+        const playerItem = createPlayerItem(playerData);
+        emptySlot.replaceWith(playerItem);
+    }
+}
+
+/**
+ * Initialize tab switching
+ */
 function initLobbyTabs() {
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabPanes = document.querySelectorAll('.tab-pane');
-    
+
     tabButtons.forEach(button => {
         button.addEventListener('click', function() {
             const targetTab = this.getAttribute('data-tab');
-            
+
             // Update active state for buttons
             tabButtons.forEach(btn => btn.classList.remove('active'));
             this.classList.add('active');
-            
+
             // Update active state for panes
             tabPanes.forEach(pane => pane.classList.remove('active'));
             const targetPane = document.getElementById(targetTab + 'Tab');
@@ -27,138 +130,181 @@ function initLobbyTabs() {
     });
 }
 
-// Initialize header controls
+/**
+ * Initialize header controls
+ */
 function initLobbyControls() {
-    const soundBtn = document.getElementById('soundBtn');
-    const infoBtn = document.getElementById('infoBtn');
-    const closeBtn = document.getElementById('closeBtn');
-    
-    if (soundBtn) {
-        soundBtn.addEventListener('click', function() {
-            // Toggle sound
-            const icon = this.querySelector('.icon');
-            if (icon.textContent === '🔊') {
-                icon.textContent = '🔇';
-            } else {
-                icon.textContent = '🔊';
-            }
-        });
+    // Sound button
+    if (domCache.soundBtn) {
+        domCache.soundBtn.addEventListener('click', handleSoundToggle);
     }
-    
-    if (infoBtn) {
-        infoBtn.addEventListener('click', function() {
-            alert('Draw & Guess - Trò chơi vẽ và đoán từ\nChờ người chơi khác tham gia để bắt đầu!');
-        });
+
+    // Info button
+    if (domCache.infoBtn) {
+        domCache.infoBtn.addEventListener('click', handleInfoClick);
     }
-    
-    if (closeBtn) {
-        closeBtn.addEventListener('click', function() {
-            if (confirm('Bạn có chắc muốn rời khỏi phòng chờ?')) {
-                window.location.href = 'index.html';
-            }
-        });
+
+    // Close button
+    if (domCache.closeBtn) {
+        domCache.closeBtn.addEventListener('click', handleCloseClick);
     }
 }
 
-// Add player to the list
-function addPlayer(playerData) {
-    const playerList = document.getElementById('playerList');
-    const emptySlots = playerList.querySelectorAll('.player-item.empty');
-    
-    if (emptySlots.length > 0) {
-        const firstEmpty = emptySlots[0];
-        firstEmpty.classList.remove('empty');
-        
-        const avatar = firstEmpty.querySelector('.player-avatar');
-        const name = firstEmpty.querySelector('.player-name');
-        const info = firstEmpty.querySelector('.player-info');
-        
-        avatar.innerHTML = `<img src="${playerData.avatar || 'css/assets/avatar/avatar-cute-2.jpg'}" alt="${playerData.username}">`;
-        name.textContent = playerData.username;
-        
-        if (!info.querySelector('.player-score')) {
-            const score = document.createElement('div');
-            score.className = 'player-score';
-            score.textContent = '0 điểm';
-            info.appendChild(score);
+/**
+ * Handle sound toggle
+ */
+function handleSoundToggle() {
+    isSoundEnabled = !isSoundEnabled;
+    const icon = domCache.soundBtn.querySelector('.icon');
+    if (icon) {
+        icon.textContent = isSoundEnabled ? ICONS.SOUND_ON : ICONS.SOUND_OFF;
+    }
+}
+
+/**
+ * Handle info button click
+ */
+function handleInfoClick() {
+    alert(`${MESSAGES.INFO_TITLE}\n${MESSAGES.INFO_CONTENT}`);
+}
+
+/**
+ * Handle close button click
+ */
+function handleCloseClick() {
+    if (confirm(MESSAGES.LEAVE_CONFIRM)) {
+        window.location.href = NAV.INDEX;
+    }
+}
+
+/**
+ * Add player to the list
+ * @param {Object} playerData 
+ * @param {string} playerData.username
+ * @param {string} [playerData.avatar]
+ * @param {number} [playerData.score]
+ */
+export function addPlayer(playerData) {
+    if (!domCache.playerList) return;
+
+    const emptySlot = findEmptySlot(domCache.playerList);
+    if (emptySlot) {
+        const playerItem = createPlayerItem(playerData);
+        emptySlot.replaceWith(playerItem);
+    }
+}
+
+/**
+ * Remove player from the list
+ * @param {string} username 
+ */
+export function removePlayer(username) {
+    if (!domCache.playerList) return;
+
+    const playerItem = findPlayerByUsername(domCache.playerList, username);
+    if (playerItem) {
+        const emptySlot = createEmptyPlayerSlot();
+        playerItem.replaceWith(emptySlot);
+    }
+}
+
+/**
+ * Update player score
+ * @param {string} username 
+ * @param {number} score 
+ */
+export function updatePlayerScore(username, score) {
+    if (!domCache.playerList) return;
+
+    const playerItem = findPlayerByUsername(domCache.playerList, username);
+    if (playerItem) {
+        const scoreElement = playerItem.querySelector('.player-score');
+        if (scoreElement) {
+            scoreElement.textContent = MESSAGES.SCORE_FORMAT(score);
         }
     }
 }
 
-// Remove player from the list
-function removePlayer(username) {
-    const playerList = document.getElementById('playerList');
-    const players = playerList.querySelectorAll('.player-item:not(.empty)');
-    
-    players.forEach(player => {
-        const nameElement = player.querySelector('.player-name');
-        if (nameElement && nameElement.textContent === username) {
-            player.classList.add('empty');
-            player.querySelector('.player-avatar').innerHTML = '<span class="empty-icon">👤</span>';
-            player.querySelector('.player-avatar').classList.add('empty-avatar');
-            player.querySelector('.player-name').textContent = 'Trống';
-            const score = player.querySelector('.player-score');
-            if (score) {
-                score.remove();
-            }
-        }
-    });
-}
+/**
+ * Add chat message
+ * @param {string} author 
+ * @param {string} message 
+ */
+export function addChatMessage(author, message) {
+    if (!domCache.chatMessages) return;
 
-// Update player score
-function updatePlayerScore(username, score) {
-    const playerList = document.getElementById('playerList');
-    const players = playerList.querySelectorAll('.player-item:not(.empty)');
-    
-    players.forEach(player => {
-        const nameElement = player.querySelector('.player-name');
-        if (nameElement && nameElement.textContent === username) {
-            const scoreElement = player.querySelector('.player-score');
-            if (scoreElement) {
-                scoreElement.textContent = `${score} điểm`;
-            }
-        }
-    });
-}
-
-// Add chat message
-function addChatMessage(author, message) {
-    const chatMessages = document.getElementById('chatMessages');
     const messageDiv = document.createElement('div');
     messageDiv.className = 'chat-message';
     messageDiv.innerHTML = `
         <span class="message-author">${author}:</span>
         <span class="message-text">${message}</span>
     `;
-    chatMessages.appendChild(messageDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    domCache.chatMessages.appendChild(messageDiv);
+    domCache.chatMessages.scrollTop = domCache.chatMessages.scrollHeight;
 }
 
-// Enable answer input when game starts
-function enableAnswerInput() {
-    const answerInput = document.getElementById('answerInput');
-    if (answerInput) {
-        answerInput.disabled = false;
-        answerInput.placeholder = 'Nhập câu trả lời của bạn...';
+/**
+ * Enable answer input when game starts
+ */
+export function enableAnswerInput() {
+    if (domCache.answerInput) {
+        domCache.answerInput.disabled = false;
+        domCache.answerInput.placeholder = MESSAGES.ANSWER_PLACEHOLDER_READY;
     }
 }
 
-// Enable chat input when logged in
-function enableChatInput() {
-    const chatInput = document.getElementById('chatInput');
-    if (chatInput) {
-        chatInput.disabled = false;
-        chatInput.placeholder = 'Nhập tin nhắn...';
+/**
+ * Enable chat input when logged in
+ */
+export function enableChatInput() {
+    if (domCache.chatInput) {
+        domCache.chatInput.disabled = false;
+        domCache.chatInput.placeholder = MESSAGES.CHAT_PLACEHOLDER_LOGGED_IN;
     }
 }
 
-// Update waiting state
-function updateWaitingState(message) {
-    const waitingMessage = document.querySelector('.waiting-message');
-    if (waitingMessage) {
-        waitingMessage.textContent = message;
+/**
+ * Update waiting state
+ * @param {string} message 
+ */
+export function updateWaitingState(message) {
+    if (domCache.waitingMessage) {
+        domCache.waitingMessage.textContent = message;
     }
 }
+
+/**
+ * Main initialization
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    cacheDOM();
+    
+    // Kiểm tra authentication trước
+    if (!checkAuthentication()) {
+        return; // Redirect đã được xử lý trong checkAuthentication
+    }
+
+    // Khởi tạo player list với empty slots
+    if (domCache.playerList) {
+        initializePlayerList(domCache.playerList, CONFIG.MAX_PLAYERS);
+    }
+
+    // Set initial placeholders và messages
+    if (domCache.waitingMessage) {
+        domCache.waitingMessage.textContent = MESSAGES.WAITING;
+    }
+    
+    if (domCache.answerInput) {
+        domCache.answerInput.placeholder = MESSAGES.ANSWER_PLACEHOLDER_WAITING;
+    }
+    
+    if (domCache.chatInput) {
+        domCache.chatInput.placeholder = MESSAGES.CHAT_PLACEHOLDER_NOT_LOGGED;
+    }
+
+    initLobbyTabs();
+    initLobbyControls();
+});
 
 // Export functions for use in other scripts
 if (typeof module !== 'undefined' && module.exports) {
