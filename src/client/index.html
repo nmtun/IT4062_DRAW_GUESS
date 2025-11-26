@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Draw & Guess - Chơi Ngay</title>
+    <link rel="stylesheet" href="css/index.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        
+        <div class="header-center">
+            <h1 class="logo">Draw & Guess</h1>
+            <p class="tagline">DRAW, GUESS, WIN</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Play Now Section -->
+            <div class="play-section">
+                <h2>CHƠI NGAY</h2>
+                
+                <!-- Tab Navigation -->
+                <div class="auth-tabs">
+                    <button class="tab-btn active" data-tab="login">Đăng Nhập</button>
+                    <button class="tab-btn" data-tab="register">Đăng Ký</button>
+                </div>
+
+                <!-- Login Form -->
+                <div id="loginForm" class="auth-form active">
+                    <div class="avatar-container">
+                        <div class="avatar">
+                            <div class="avatar-face"></div>
+                            <button class="edit-avatar">✏️</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginUsername">Tài khoản</label>
+                        <input type="text" id="loginUsername" name="username" placeholder="Nhập tài khoản">
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Mật khẩu</label>
+                        <input type="password" id="loginPassword" name="password" placeholder="Nhập mật khẩu">
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn btn-play" id="loginBtn">
+                            ĐĂNG NHẬP
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Register Form -->
+                <div id="registerForm" class="auth-form">
+                    <div class="form-group">
+                        <label for="registerUsername">Tài khoản</label>
+                        <input type="text" id="registerUsername" name="username" placeholder="Nhập tài khoản">
+                    </div>
+                    <div class="form-group">
+                        <label for="registerPassword">Mật khẩu</label>
+                        <input type="password" id="registerPassword" name="password" placeholder="Nhập mật khẩu">
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Xác nhận mật khẩu</label>
+                        <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Nhập lại mật khẩu">
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn btn-play" id="registerBtn">
+                            ĐĂNG KÝ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+   
+
+    <!-- Avatar Selection Modal -->
+    <div id="avatarModal" class="avatar-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Chọn Avatar</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="avatarGrid" class="avatar-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/utils/validate.js"></script>
+    <script src="js/auth/backgound.js"></script>
+    <script src="js/auth/avatar.js"></script>
+    <script src="js/auth/auth.js"></script>
+    <!-- <script type="module" src="js/network.js"></script> -->
+</body>
+</html>
