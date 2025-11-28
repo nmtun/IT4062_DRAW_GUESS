@@ -1,0 +1,20 @@
+{
+  "name": "draw-guess-gateway",
+  "version": "1.0.0",
+  "description": "WebSocket to TCP Gateway for Draw & Guess Game",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --inspect index.js",
+    "test": "node test-client.js auto",
+    "test-interactive": "node test-client.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ws": "^8.18.3"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
