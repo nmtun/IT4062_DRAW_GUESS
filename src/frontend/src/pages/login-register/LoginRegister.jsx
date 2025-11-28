@@ -47,18 +47,16 @@ export default function LoginRegister() {
     setMessage({ text: '', type: '' });
     setLoginErrors({});
     setRegisterErrors({});
-    clearError();
-  }, [activeTab, clearError]);
+    if (authError) {
+      clearError();
+    }
+  }, [activeTab]);
 
 
 
   // Event handlers
   const handleTabSwitch = (tab) => {
     setActiveTab(tab);
-    setMessage({ text: '', type: '' });
-    setLoginErrors({});
-    setRegisterErrors({});
-    clearError();
   };
 
   const handleAvatarSelect = (avatar) => {
@@ -99,6 +97,7 @@ export default function LoginRegister() {
       // Success will be handled by useEffect
       setLoginForm({ username: '', password: '' });
       setLoginErrors({});
+      alert('Đăng nhập thành công!');
     }
   };
 
@@ -126,6 +125,7 @@ export default function LoginRegister() {
       setActiveTab('login');
       setRegisterForm({ username: '', password: '', confirmPassword: '' });
       setRegisterErrors({});
+      alert('Đăng ký thành công! Vui lòng đăng nhập.'); 
     }
   };
 
@@ -181,7 +181,6 @@ export default function LoginRegister() {
                 form={loginForm}
                 errors={loginErrors}
                 isLoading={isLoading}
-                isConnected={isConnected}
                 selectedAvatar={selectedAvatar}
                 onFormChange={handleLoginFormChange}
                 onSubmit={handleLogin}
@@ -195,7 +194,6 @@ export default function LoginRegister() {
                 form={registerForm}
                 errors={registerErrors}
                 isLoading={isLoading}
-                isConnected={isConnected}
                 onFormChange={handleRegisterFormChange}
                 onSubmit={handleRegister}
               />

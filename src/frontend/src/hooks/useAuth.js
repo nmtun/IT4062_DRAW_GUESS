@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { getAuthService } from '../services/AuthService';
 
 /**
@@ -13,36 +13,34 @@ export const useAuth = () => {
 
     useEffect(() => {
         const service = authService.current;
+        let isMounted = true; // Flag để tránh state update sau khi unmount
 
-        // Kiểm tra user đã login từ localStorage
-        const savedUser = localStorage.getItem('user');
-        if (savedUser) {
-            try {
-                setUser(JSON.parse(savedUser));
-            } catch (err) {
-                console.error('Error parsing saved user:', err);
-                localStorage.removeItem('user');
+        // Chỉ kiểm tra trạng thái kết nối hiện tại, không tự động kết nối
+        const currentState = service.getConnectionState();
+        if (currentState === 'connected') {
+            // Đã kết nối rồi
+            if (isMounted) {
+                setIsConnected(true);
+                setIsLoading(false);
+                setError(null);
+            }
+        } else if (currentState === 'connecting') {
+            // Đang kết nối
+            if (isMounted) {
+                setIsLoading(true);
+            }
+        } else {
+            // Disconnected - sẵn sàng kết nối khi cần
+            if (isMounted) {
+                setIsConnected(false);
+                setIsLoading(false);
+                setError(null); // Không hiển thị error khi chưa thử kết nối
             }
         }
 
-        // Kết nối đến gateway
-        setIsLoading(true);
-        service.connect()
-            .then(() => {
-                setIsConnected(true);
-                setError(null);
-            })
-            .catch((err) => {
-                console.error('Connection failed:', err);
-                setIsConnected(false);
-                setError('Không thể kết nối đến server');
-            })
-            .finally(() => {
-                setIsLoading(false);
-            });
-
         // Subscribe to responses
-        service.subscribe('login_response', (data) => {
+        const handleLoginResponse = (data) => {
+            if (!isMounted) return;
             setIsLoading(false);
             if (data.status === 'success') {
                 const userData = {
@@ -51,44 +49,76 @@ export const useAuth = () => {
                     avatar: data.avatar || 'avt1.jpg'
                 };
                 setUser(userData);
-                localStorage.setItem('user', JSON.stringify(userData));
                 setError(null);
             } else {
                 setError('Tài khoản hoặc mật khẩu không đúng');
                 setUser(null);
-                localStorage.removeItem('user');
             }
-        });
+        };
 
-        service.subscribe('register_response', (data) => {
+        const handleRegisterResponse = (data) => {
+            if (!isMounted) return;
             setIsLoading(false);
             if (data.status === 'success') {
                 setError(null);
             } else {
                 setError(data.message || 'Đăng ký thất bại');
             }
-        });
+        };
 
-        service.subscribe('error', (data) => {
+        const handleError = (data) => {
+            if (!isMounted) return;
             setIsLoading(false);
             setError(data.message || 'Có lỗi xảy ra');
-        });
+        };
 
-        service.subscribe('connection_failed', () => {
+        const handleConnectionFailed = () => {
+            if (!isMounted) return;
             setIsConnected(false);
             setError('Mất kết nối với server');
-        });
+        };
+
+        service.subscribe('login_response', handleLoginResponse);
+        service.subscribe('register_response', handleRegisterResponse);
+        service.subscribe('error', handleError);
+        service.subscribe('connection_failed', handleConnectionFailed);
 
         // Cleanup
         return () => {
-            service.disconnect();
+            isMounted = false; // Đánh dấu component đã unmount
+            
+            // Unsubscribe các callback cụ thể
+            service.unsubscribe('login_response', handleLoginResponse);
+            service.unsubscribe('register_response', handleRegisterResponse);
+            service.unsubscribe('error', handleError);
+            service.unsubscribe('connection_failed', handleConnectionFailed);
+            
+            // Chỉ disconnect nếu không còn subscribers nào khác
+            // Điều này giúp tránh việc disconnect không cần thiết trong StrictMode
+            if (service.callbacks.size === 0) {
+                console.log('No more subscribers, keeping connection alive for potential reuse');
+            }
         };
     }, []);
 
     const login = async (username, password, avatar) => {
-        if (!isConnected) {
-            setError('Chưa kết nối đến server');
-            return false;
+        const service = authService.current;
+        let connectionState = service.getConnectionState();
+        
+        // Kết nối nếu chưa kết nối
+        if (connectionState !== 'connected') {
+            setIsLoading(true);
+            setError(null);
+            
+            try {
+                await service.connect();
+                setIsConnected(true);
+            } catch (err) {
+                console.error('Connection failed:', err);
+                setIsLoading(false);
+                setError('Không thể kết nối đến server');
+                return false;
+            }
         }
 
         setIsLoading(true);
@@ -105,9 +135,23 @@ export const useAuth = () => {
     };
 
     const register = async (username, password) => {
-        if (!isConnected) {
-            setError('Chưa kết nối đến server');
-            return false;
+        const service = authService.current;
+        let connectionState = service.getConnectionState();
+        
+        // Kết nối nếu chưa kết nối
+        if (connectionState !== 'connected') {
+            setIsLoading(true);
+            setError(null);
+            
+            try {
+                await service.connect();
+                setIsConnected(true);
+            } catch (err) {
+                console.error('Connection failed:', err);
+                setIsLoading(false);
+                setError('Không thể kết nối đến server');
+                return false;
+            }
         }
 
         setIsLoading(true);
@@ -126,13 +170,12 @@ export const useAuth = () => {
     const logout = () => {
         authService.current.logout();
         setUser(null);
-        localStorage.removeItem('user');
         setError(null);
     };
 
-    const clearError = () => {
+    const clearError = useCallback(() => {
         setError(null);
-    };
+    }, []);
 
     return {
         // State

@@ -6,7 +6,6 @@ export default function RegisterForm({
   form, 
   errors, 
   isLoading, 
-  isConnected, 
   onFormChange,
   onSubmit
 }) {
@@ -118,7 +117,7 @@ export default function RegisterForm({
         <button 
           type="submit" 
           className="btn btn-play"
-          disabled={isLoading || !isConnected}
+          disabled={isLoading}
         >
           {isLoading ? (
             <>

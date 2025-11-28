@@ -6,7 +6,6 @@ export default function LoginForm({
   form, 
   errors, 
   isLoading, 
-  isConnected, 
   selectedAvatar,
   onFormChange,
   onSubmit,
@@ -110,7 +109,7 @@ export default function LoginForm({
         <button 
           type="submit" 
           className="btn btn-play"
-          disabled={isLoading || !isConnected}
+          disabled={isLoading}
         >
           {isLoading ? (
             <>
