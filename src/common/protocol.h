@@ -102,5 +102,68 @@ typedef struct {
     char message[128];            // Thông báo lỗi hoặc thành công
 } register_response_t;
 
+// Room state enum (phải match với room.h)
+typedef enum {
+    ROOM_STATE_WAITING = 0,
+    ROOM_STATE_PLAYING = 1,
+    ROOM_STATE_FINISHED = 2
+} room_state_protocol_t;
+
+// CREATE_ROOM request payload structure
+typedef struct {
+    char room_name[MAX_ROOM_NAME_LEN];
+    uint8_t max_players;          // 2-10
+    uint8_t rounds;               // 1-10
+} create_room_request_t;
+
+// CREATE_ROOM response payload structure
+typedef struct {
+    uint8_t status;              // STATUS_SUCCESS hoặc STATUS_ERROR
+    int32_t room_id;             // -1 nếu thất bại
+    char message[128];            // Thông báo lỗi hoặc thành công
+} create_room_response_t;
+
+// JOIN_ROOM request payload structure
+typedef struct {
+    int32_t room_id;
+} join_room_request_t;
+
+// JOIN_ROOM response payload structure
+typedef struct {
+    uint8_t status;              // STATUS_SUCCESS hoặc STATUS_ERROR
+    int32_t room_id;             // -1 nếu thất bại
+    char message[128];            // Thông báo lỗi hoặc thành công
+} join_room_response_t;
+
+// LEAVE_ROOM request payload structure
+typedef struct {
+    int32_t room_id;
+} leave_room_request_t;
+
+// LEAVE_ROOM response payload structure
+typedef struct {
+    uint8_t status;              // STATUS_SUCCESS hoặc STATUS_ERROR
+    char message[128];            // Thông báo lỗi hoặc thành công
+} leave_room_response_t;
+
+// Room info structure (dùng cho ROOM_LIST_RESPONSE và ROOM_UPDATE)
+typedef struct {
+    int32_t room_id;
+    char room_name[MAX_ROOM_NAME_LEN];
+    uint8_t player_count;
+    uint8_t max_players;
+    uint8_t state;                // room_state_protocol_t
+    int32_t owner_id;
+} room_info_protocol_t;
+
+// ROOM_LIST_RESPONSE payload structure
+typedef struct {
+    uint16_t room_count;          // Số lượng phòng
+    // Sau đó là mảng room_info_protocol_t[room_count]
+} room_list_response_t;
+
+// ROOM_UPDATE payload structure (giống room_info_protocol_t)
+// Sử dụng room_info_protocol_t trực tiếp
+
 #endif // PROTOCOL_H
 

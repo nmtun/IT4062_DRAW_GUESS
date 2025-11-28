@@ -65,5 +65,51 @@ int protocol_send_register_response(int client_fd, uint8_t status, const char* m
  */
 int protocol_send_message(int client_fd, uint8_t type, const uint8_t* payload, uint16_t payload_len);
 
+/**
+ * Gửi ROOM_LIST_RESPONSE đến client
+ * @param client_fd File descriptor của client socket
+ * @param server Con trỏ đến server_t để lấy danh sách phòng
+ * @return 0 nếu thành công, -1 nếu lỗi
+ */
+int protocol_send_room_list(int client_fd, server_t* server);
+
+/**
+ * Gửi ROOM_UPDATE đến tất cả clients trong phòng
+ * @param server Con trỏ đến server_t
+ * @param room Con trỏ đến room_t cần broadcast
+ * @param exclude_client_index Client index cần loại trừ (hoặc -1 nếu không loại trừ)
+ * @return 0 nếu thành công, -1 nếu lỗi
+ */
+int protocol_broadcast_room_update(server_t* server, room_t* room, int exclude_client_index);
+
+/**
+ * Gửi CREATE_ROOM_RESPONSE đến client
+ * @param client_fd File descriptor của client socket
+ * @param status Status code (STATUS_SUCCESS hoặc STATUS_ERROR)
+ * @param room_id Room ID (hoặc -1 nếu thất bại)
+ * @param message Thông báo (lỗi hoặc thành công)
+ * @return 0 nếu thành công, -1 nếu lỗi
+ */
+int protocol_send_create_room_response(int client_fd, uint8_t status, int32_t room_id, const char* message);
+
+/**
+ * Gửi JOIN_ROOM_RESPONSE đến client
+ * @param client_fd File descriptor của client socket
+ * @param status Status code (STATUS_SUCCESS hoặc STATUS_ERROR)
+ * @param room_id Room ID (hoặc -1 nếu thất bại)
+ * @param message Thông báo (lỗi hoặc thành công)
+ * @return 0 nếu thành công, -1 nếu lỗi
+ */
+int protocol_send_join_room_response(int client_fd, uint8_t status, int32_t room_id, const char* message);
+
+/**
+ * Gửi LEAVE_ROOM_RESPONSE đến client
+ * @param client_fd File descriptor của client socket
+ * @param status Status code (STATUS_SUCCESS hoặc STATUS_ERROR)
+ * @param message Thông báo (lỗi hoặc thành công)
+ * @return 0 nếu thành công, -1 nếu lỗi
+ */
+int protocol_send_leave_room_response(int client_fd, uint8_t status, const char* message);
+
 #endif // PROTOCOL_HANDLER_H
 
