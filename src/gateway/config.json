@@ -1,0 +1,26 @@
+{
+  "gateway": {
+    "websocket": {
+      "port": 3000,
+      "host": "0.0.0.0"
+    },
+    "tcp": {
+      "host": "localhost",
+      "port": 8080,
+      "maxRetries": 5,
+      "retryDelay": 1000,
+      "connectionTimeout": 10000
+    },
+    "logging": {
+      "level": "info",
+      "enableDebug": false,
+      "enablePerformanceStats": true,
+      "statsInterval": 30000
+    },
+    "limits": {
+      "maxConnections": 100,
+      "messageTimeout": 30000,
+      "maxMessageSize": 4096
+    }
+  }
+}
