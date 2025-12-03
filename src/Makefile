@@ -114,7 +114,7 @@ OBJ_DIR = build
 TARGET = main$(EXE)
 
 # Source files
-SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/server.c $(SRC_DIR)/database.c $(SRC_DIR)/auth.c $(SRC_DIR)/protocol.c $(SRC_DIR)/room.c
+SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/server.c $(SRC_DIR)/database.c $(SRC_DIR)/auth.c $(SRC_DIR)/protocol.c $(SRC_DIR)/room.c $(SRC_DIR)/drawing.c
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
 # Test room
@@ -144,6 +144,13 @@ test_room: $(TEST_ROOM_OBJS) $(TEST_ROOM_SRC)
 	@echo "Test room built: ./$(TEST_ROOM)"
 	@echo "Run with: ./$(TEST_ROOM)"
 
+# Test drawing module
+test_drawing: $(OBJ_DIR)/drawing.o test_drawing.c
+	@echo "Building drawing module test..."
+	$(CC) $(CFLAGS) -I$(HEADER_DIR) test_drawing.c $(OBJ_DIR)/drawing.o -o test_drawing
+	@echo "Test drawing built: ./test_drawing"
+	@echo "Run with: ./test_drawing"
+
 $(TARGET): $(OBJS)
 	@echo "Linking $(TARGET)..."
 	$(CC) $(OBJS) -o $@ $(LDFLAGS)
@@ -169,6 +176,7 @@ clean:
 	$(RM) $(TARGET)
 	$(RM) test_client
 	$(RM) $(TEST_ROOM)
+	$(RM) test_drawing
 	@echo "Clean complete!"
 
 # ============================
