@@ -5,7 +5,7 @@ import PlayerList from '../../components/PlayerList';
 import { useAuth } from '../../hooks/useAuth';
 import './GameRoom.css';
 
-const DEFAULT_ROUND_TIME = 60;
+const DEFAULT_ROUND_TIME = 90;
 
 export default function GameRoom({ 
   roomId, 
@@ -44,20 +44,16 @@ export default function GameRoom({
       <header className="game-header">
         <div className="header-left">
           <button className="back-btn" onClick={onLeaveRoom}>
-            ← Quay lại
+            Quay lại
           </button>
         </div>
         <div className="header-center">
-          <h1 className="game-logo">Draw & Guess</h1>
+          <div className="timer">
+            <span className="timer-icon">⏱️</span>
+            <span className="timer-text">{timeLeft}s</span>
+          </div>
         </div>
         <div className="header-right">
-          <div className="game-info">
-            <div className="timer">
-              <span className="timer-icon">⏱️</span>
-              <span className="timer-text">{timeLeft}s</span>
-            </div>
-            <button className="exit-btn">✕</button>
-          </div>
         </div>
       </header>
 
@@ -72,12 +68,6 @@ export default function GameRoom({
           {/* Center Panel - Canvas */}
           <section className="game-center">
             <div className="game-status">
-              {gameState === 'waiting' && (
-                <div className="status-banner waiting">
-                  <h2>ĐANG CHỜ</h2>
-                  <p>Đang chờ người chơi tham gia...</p>
-                </div>
-              )}
               {gameState === 'playing' && isDrawing && (
                 <div className="status-banner drawing">
                   <h2>BẠN ĐANG VẼ</h2>

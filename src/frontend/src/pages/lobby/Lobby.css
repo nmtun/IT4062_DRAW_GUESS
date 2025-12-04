@@ -5,7 +5,6 @@
 }
 
 .lobby-page {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background: url('/src/assets/background.jpeg');
   min-height: 100vh;
   position: relative;
@@ -29,24 +28,54 @@
   pointer-events: none;
 }
 
+/* Rainbow animation for cute logo */
+@keyframes rainbow {
+  0% {
+    filter: hue-rotate(0deg) brightness(1.1);
+  }
+  50% {
+    filter: hue-rotate(180deg) brightness(1.3);
+  }
+  100% {
+    filter: hue-rotate(360deg) brightness(1.1);
+  }
+}
+
 /* Header */
 .lobby-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   position: relative;
   z-index: 1;
-  padding-left: 40px;
-  padding-right: 40px;
+  padding: 20px 40px;
 }
 
-.header-left,
-.header-right {
-  flex: 1;
+
+.header-left {
+  position: absolute;
+  left: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
 }
 
 .header-center {
-  flex: 2;
+  text-align: center;
+  flex: 1;
+}
+
+.header-right {
+  position: absolute;
+  right: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+}
+
+.header-center {
   text-align: center;
 }
 
@@ -66,10 +95,12 @@
 }
 
 .lobby-logo {
-  font-size: 2.5rem;
+  font-family: 'Comic Sans MS', 'Chalkboard SE', 'Bradley Hand', cursive;
+  font-size: 3rem;
   font-weight: bold;
   color: white;
-  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  text-shadow: 3px 3px 6px rgba(0,0,0,0.4);
+  letter-spacing: 2px;
 }
 
 .user-info {
@@ -78,16 +109,20 @@
   gap: 8px;
   color: white;
   font-weight: 500;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .username {
   font-size: 1rem;
+  color: #000000;
+  background-color: #ffffff;
+  padding: 6px 6px; 
+  border-radius: 8px;
 }
 
-.avatar {
-  width: 80px;
-  height: 80px;
+.lobby-avatar {
+  width: 60px;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -95,6 +130,18 @@
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.2);
   border: 2px solid rgba(255, 255, 255, 0.3);
+  overflow: hidden;
+}
+
+.lobby-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.btn-logout {
+  padding: auto;
 }
 
 /* Main Content */
@@ -108,7 +155,31 @@
   border-radius: 20px;
   border: 3px solid rgba(102, 126, 234, 0.4);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  max-height: 70vh;
+  overflow-y: auto;
 }
+
+/* Custom scrollbar for main content */
+.lobby-main::-webkit-scrollbar {
+  width: 8px;
+}
+
+.lobby-main::-webkit-scrollbar-track {
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 4px;
+  margin: 12px 0;
+}
+
+.lobby-main::-webkit-scrollbar-thumb {
+  background: rgba(102, 126, 234, 0.5);
+  border-radius: 4px;
+  margin: 12px 0;
+}
+
+.lobby-main::-webkit-scrollbar-thumb:hover {
+  background: rgba(102, 126, 234, 0.7);
+}
+
 
 /* Controls */
 .lobby-controls {
@@ -121,8 +192,15 @@
 
 .search-container {
   position: relative;
-  flex: 1;
-  min-width: 200px;
+  min-width: 250px;
+  max-width: 350px;
+}
+
+.rooms-header .search-container {
+  flex-shrink: 0;
+  position: absolute;
+  right: 0;
+  width: 300px;
 }
 
 .search-input {
@@ -177,20 +255,36 @@
   color: #666;
 }
 
+/* Rooms Header Container */
+.rooms-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 30px;
+  position: sticky;
+  top: 0;
+  gap: 40px;
+  z-index: 100;
+  padding: 15px 15px;
+  border-radius: 12px;
+  margin-top: -15px;
+}
+
 /* Rooms Title */
 .rooms-title {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px;
+  padding: 20px 60px;
   border-radius: 12px;
-  margin-bottom: 30px;
   text-align: center;
+  min-width: 300px;
+  background-color: rgba(246, 201, 0, 0.979);
 }
 
 .rooms-title h2 {
-  color: white;
+  color: rgb(254, 254, 254);
   font-size: 2rem;
   font-weight: bold;
   text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+  margin: 0;
 }
 
 /* Rooms Grid */
@@ -253,13 +347,22 @@
   .lobby-header {
     flex-direction: column;
     gap: 15px;
+    padding: 20px;
   }
 
   .header-left,
-  .header-right,
+  .header-right {
+    position: static;
+    align-self: center;
+  }
+
   .header-center {
-    flex: 1;
+    order: -1;
     width: 100%;
+  }
+
+  .lobby-logo {
+    font-size: 2.5rem;
   }
 
   .rooms-grid {
@@ -274,6 +377,28 @@
   .btn-play {
     width: 100%;
     justify-content: center;
+  }
+}
+
+@media (max-width: 900px) {
+  .rooms-header {
+    flex-direction: column;
+    gap: 15px;
+    position: sticky;
+    top: 0;
+    padding: 20px 15px;
+  }
+
+  .rooms-title {
+    width: 100%;
+    min-width: auto;
+    padding: 20px;
+  }
+
+  .rooms-header .search-container {
+    position: static;
+    width: 100%;
+    max-width: none;
   }
 }
 

@@ -328,12 +328,13 @@ class AuthService {
     /**
      * Đăng nhập
      */
-    login(username, password) {
+    login(username, password, avatar) {
         const message = {
             type: 'login',
             data: { 
                 username: username.trim(), 
-                password
+                password,
+                avatar: avatar || 'avt1.jpg'
             }
         };
         return this.send(message);
