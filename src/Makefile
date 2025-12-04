@@ -114,7 +114,10 @@ OBJ_DIR = build
 TARGET = main$(EXE)
 
 # Source files
-SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/server.c $(SRC_DIR)/database.c $(SRC_DIR)/auth.c $(SRC_DIR)/protocol.c $(SRC_DIR)/room.c $(SRC_DIR)/drawing.c
+SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/server.c $(SRC_DIR)/database.c $(SRC_DIR)/auth.c \
+       $(SRC_DIR)/protocol.c $(SRC_DIR)/protocol_core.c $(SRC_DIR)/protocol_auth.c $(SRC_DIR)/protocol_room.c \
+       $(SRC_DIR)/room.c $(SRC_DIR)/drawing.c
+
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
 # Test room
@@ -126,9 +129,9 @@ TEST_ROOM_OBJS = $(OBJ_DIR)/room.o
 #  Build rules
 # ============================
 
-all: $(TARGET)
+all: $(TARGET) test_client room_test test_room
 	@echo "Built for: $(PLATFORM)"
-	@echo "Executable: $(TARGET)"
+	@echo "Executables: $(TARGET), test_client, room_test, $(TEST_ROOM)"
 
 # Test client
 # Tắt flag sinh ra .dSYM và .yml cho target này (không dùng -g, không sinh debug info)
@@ -136,6 +139,13 @@ test_client: test_client.c
 	@echo "Building test client..."
 	$(CC) -Wall -Wextra -O2 -I$(HEADER_DIR) -Icommon test_client.c -o test_client
 	@echo "Test client built: ./test_client"
+
+# Test room protocol
+room_test: room_test.c
+	@echo "Building room protocol test..."
+	$(CC) -Wall -Wextra -O2 -I$(HEADER_DIR) -Icommon room_test.c -o room_test -lpthread
+	@echo "Room test built: ./room_test"
+	@echo "Run with: ./room_test"
 
 # Test room module
 test_room: $(TEST_ROOM_OBJS) $(TEST_ROOM_SRC)
@@ -175,6 +185,7 @@ clean:
 	$(RM) $(OBJ_DIR)/*.o
 	$(RM) $(TARGET)
 	$(RM) test_client
+	$(RM) room_test
 	$(RM) $(TEST_ROOM)
 	$(RM) test_drawing
 	@echo "Clean complete!"

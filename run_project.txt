@@ -15,3 +15,13 @@ cd src/
 
 Câu lệnh truy cập vào cơ sở dữ liệu (bỏ qua bước này)
     mysql --protocol=TCP -h 127.0.0.1 -P 3308 -u root -p (pass: 123456)
+
+//Hướng dẫn test
+1. test đăng nhập đăng kí:
+make test_client
+./test_client login username password
+./test_client register ...
+
+2. test room
+make room_test
+./room_test

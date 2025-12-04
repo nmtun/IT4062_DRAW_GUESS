@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getAuthService } from '../services/AuthService';
+import { saveUserData, getUserData, clearUserData, saveAvatar, getAvatar, getCurrentUser } from '../utils/userStorage';
 
 /**
  * Custom hook để quản lý authentication state
@@ -14,6 +15,12 @@ export const useAuth = () => {
     useEffect(() => {
         const service = authService.current;
         let isMounted = true; // Flag để tránh state update sau khi unmount
+        
+        // Khôi phục user data từ localStorage nếu có
+        const savedUserData = getCurrentUser();
+        if (savedUserData && isMounted) {
+            setUser(savedUserData);
+        }
 
         // Chỉ kiểm tra trạng thái kết nối hiện tại, không tự động kết nối
         const currentState = service.getConnectionState();
@@ -43,11 +50,17 @@ export const useAuth = () => {
             if (!isMounted) return;
             setIsLoading(false);
             if (data.status === 'success') {
+                // Lấy avatar từ localStorage hoặc dùng default
+                const savedAvatar = getAvatar();
                 const userData = {
                     id: data.userId,
                     username: data.username,
-                    avatar: data.avatar || 'avt1.jpg'
+                    avatar: data.avatar || savedAvatar
                 };
+                
+                // Lưu thông tin user vào localStorage để persist
+                saveUserData(userData);
+                
                 setUser(userData);
                 setError(null);
             } else {
@@ -169,6 +182,8 @@ export const useAuth = () => {
 
     const logout = () => {
         authService.current.logout();
+        // Xóa user data khỏi localStorage nhưng giữ lại avatar
+        clearUserData();
         setUser(null);
         setError(null);
     };
@@ -176,6 +191,18 @@ export const useAuth = () => {
     const clearError = useCallback(() => {
         setError(null);
     }, []);
+
+    const updateAvatar = useCallback((newAvatar) => {
+        // Lưu avatar vào localStorage
+        saveAvatar(newAvatar);
+        
+        // Cập nhật user state nếu đang đăng nhập
+        if (user) {
+            const updatedUser = { ...user, avatar: newAvatar };
+            setUser(updatedUser);
+            saveUserData(updatedUser);
+        }
+    }, [user]);
 
     return {
         // State
@@ -190,6 +217,7 @@ export const useAuth = () => {
         register,
         logout,
         clearError,
+        updateAvatar,
 
         // Utils
         connectionInfo: authService.current.getConnectionInfo()

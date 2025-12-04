@@ -1,5 +1,6 @@
 #include "../include/server.h"
 #include "../include/protocol.h"
+#include "../include/room.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -148,8 +149,137 @@ void server_handle_client_data(server_t *server, int client_index) {
     }
 }
 
+/**
+ * Tìm room mà client đang ở trong
+ */
+room_t* server_find_room_by_user(server_t* server, int user_id) {
+    if (!server || user_id <= 0) {
+        return NULL;
+    }
+
+    // Duyệt qua tất cả rooms
+    for (int i = 0; i < MAX_ROOMS; i++) {
+        if (server->rooms[i] != NULL) {
+            if (room_has_player(server->rooms[i], user_id)) {
+                return server->rooms[i];
+            }
+        }
+    }
+
+    return NULL;
+}
+
+/**
+ * Broadcast message đến tất cả clients trong phòng
+ */
+int server_broadcast_to_room(server_t* server, int room_id, uint8_t msg_type, 
+                             const uint8_t* payload, uint16_t payload_len, 
+                             int exclude_user_id) {
+    if (!server || room_id <= 0) {
+        return -1;
+    }
+
+    // Tìm room
+    room_t* room = NULL;
+    for (int i = 0; i < MAX_ROOMS; i++) {
+        if (server->rooms[i] != NULL && server->rooms[i]->room_id == room_id) {
+            room = server->rooms[i];
+            break;
+        }
+    }
+
+    if (!room) {
+        fprintf(stderr, "Không tìm thấy phòng với room_id=%d\n", room_id);
+        return -1;
+    }
+
+    // Gửi message đến tất cả clients trong phòng
+    int sent_count = 0;
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        client_t* client = &server->clients[i];
+        
+        // Bỏ qua client không active
+        if (!client->active) {
+            continue;
+        }
+
+        // Bỏ qua client bị loại trừ
+        if (exclude_user_id > 0 && client->user_id == exclude_user_id) {
+            continue;
+        }
+
+        // Kiểm tra client có trong phòng không
+        if (room_has_player(room, client->user_id)) {
+            if (protocol_send_message(client->fd, msg_type, payload, payload_len) == 0) {
+                sent_count++;
+            }
+        }
+    }
+
+    printf("Đã broadcast message type 0x%02X đến phòng '%s' (ID: %d) - %d clients nhận được\n",
+           msg_type, room->room_name, room_id, sent_count);
+    
+    return sent_count;
+}
+
 // Xử lý ngắt kết nối
 void server_handle_disconnect(server_t *server, int client_index) {
+    if (client_index < 0 || client_index >= MAX_CLIENTS) {
+        return;
+    }
+
+    client_t* client = &server->clients[client_index];
+    if (!client->active) {
+        return;
+    }
+
+    // Nếu client đang trong phòng, xóa khỏi phòng
+    if (client->user_id > 0 && 
+        (client->state == CLIENT_STATE_IN_ROOM || client->state == CLIENT_STATE_IN_GAME)) {
+        
+        room_t* room = server_find_room_by_user(server, client->user_id);
+        if (room) {
+            printf("Client %d (user_id=%d) đang disconnect, xóa khỏi phòng '%s' (ID: %d)\n",
+                   client_index, client->user_id, room->room_name, room->room_id);
+            
+            // Xóa player khỏi phòng
+            room_remove_player(room, client->user_id);
+            
+            // Lưu thông tin phòng trước khi có thể destroy
+            char room_name[ROOM_NAME_MAX_LENGTH];
+            int room_id = room->room_id;
+            strncpy(room_name, room->room_name, ROOM_NAME_MAX_LENGTH - 1);
+            room_name[ROOM_NAME_MAX_LENGTH - 1] = '\0';
+            
+            // Lưu thông tin user đang disconnect
+            int leaving_user_id = client->user_id;
+            char leaving_username[32];
+            strncpy(leaving_username, client->username, sizeof(leaving_username) - 1);
+            leaving_username[sizeof(leaving_username) - 1] = '\0';
+            
+            // Nếu phòng trống, xóa phòng
+            if (room->player_count == 0) {
+                // Tìm và xóa phòng khỏi server
+                for (int i = 0; i < MAX_ROOMS; i++) {
+                    if (server->rooms[i] == room) {
+                        server->rooms[i] = NULL;
+                        server->room_count--;
+                        break;
+                    }
+                }
+                room_destroy(room);
+                printf("Phòng '%s' (ID: %d) đã bị xóa vì không còn người chơi\n",
+                       room_name, room_id);
+            } else {
+                // Broadcast ROOM_PLAYERS_UPDATE với danh sách đầy đủ (đã bao gồm tất cả thông tin phòng)
+                protocol_broadcast_room_players_update(server, room, 1, // 1 = LEAVE
+                                                      leaving_user_id, leaving_username, 
+                                                      -1);
+            }
+        }
+    }
+
+    // Xóa client khỏi danh sách
     server_remove_client(server, client_index);
 }
 

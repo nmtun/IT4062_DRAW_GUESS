@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { validateLoginForm, validateRegisterForm } from '../../utils/validation';
+import { getAvatar } from '../../utils/userStorage';
 import LoginForm from '../../components/LoginForm';
 import RegisterForm from '../../components/RegisterForm';
 import AvatarSelector from '../../components/AvatarSelector';
 import './LoginRegister.css';
 
 export default function LoginRegister({ onLoginSuccess }) {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('login');
-  const [selectedAvatar, setSelectedAvatar] = useState('avt1.jpg');
+  const [selectedAvatar, setSelectedAvatar] = useState(getAvatar()); // Load avatar từ localStorage
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   
   // Form states
@@ -32,7 +35,8 @@ export default function LoginRegister({ onLoginSuccess }) {
     error: authError, 
     login, 
     register, 
-    clearError 
+    clearError,
+    updateAvatar 
   } = useAuth();
 
   // Handle auth error
@@ -41,6 +45,19 @@ export default function LoginRegister({ onLoginSuccess }) {
       setMessage({ text: authError, type: 'error' });
     }
   }, [authError]);
+
+  // Handle successful login - navigate to lobby
+  useEffect(() => {
+    if (user && !isLoading) {
+      setMessage({ text: 'Đăng nhập thành công!', type: 'success' });
+      setTimeout(() => {
+        navigate('/lobby');
+        if (onLoginSuccess) {
+          onLoginSuccess();
+        }
+      }, 500);
+    }
+  }, [user, isLoading, navigate, onLoginSuccess]);
 
   // Clear message when switching tabs
   useEffect(() => {
@@ -52,8 +69,6 @@ export default function LoginRegister({ onLoginSuccess }) {
     }
   }, [activeTab]);
 
-
-
   // Event handlers
   const handleTabSwitch = (tab) => {
     setActiveTab(tab);
@@ -62,6 +77,8 @@ export default function LoginRegister({ onLoginSuccess }) {
   const handleAvatarSelect = (avatar) => {
     setSelectedAvatar(avatar);
     setShowAvatarModal(false);
+    // Cập nhật avatar trong localStorage ngay lập tức
+    updateAvatar(avatar);
   };
 
   const handleLoginFormChange = ({ form, errors }) => {
@@ -94,15 +111,9 @@ export default function LoginRegister({ onLoginSuccess }) {
     );
 
     if (success) {
-      // Success will be handled by useEffect
+      // Reset form khi gửi yêu cầu thành công
       setLoginForm({ username: '', password: '' });
       setLoginErrors({});
-      // Chuyển sang trang lobby sau khi đăng nhập thành công
-      if (onLoginSuccess) {
-        setTimeout(() => {
-          onLoginSuccess();
-        }, 500);
-      }
     }
   };
 
@@ -121,16 +132,18 @@ export default function LoginRegister({ onLoginSuccess }) {
     
     const success = await register(
       registerForm.username,
-      registerForm.password    
+      registerForm.password
     );
 
     if (success) {
-      // If register is successful, switch to login tab and reset form
-      setMessage({ text: 'Đăng ký thành công! Bạn có thể đăng nhập ngay.', type: 'success' });
+      // Đăng ký thành công, chuyển về tab đăng nhập
+      setMessage({ text: 'Đăng ký thành công! Vui lòng đăng nhập để tiếp tục.', type: 'success' });
       setActiveTab('login');
       setRegisterForm({ username: '', password: '', confirmPassword: '' });
       setRegisterErrors({});
-      alert('Đăng ký thành công! Vui lòng đăng nhập.'); 
+      
+      // Pre-fill username trong form đăng nhập
+      setLoginForm({ username: registerForm.username, password: '' });
     }
   };
 
@@ -140,7 +153,7 @@ export default function LoginRegister({ onLoginSuccess }) {
       <header className="header">
         <div className="header-center">
           <h1 className="logo">Draw & Guess</h1>
-          <p className="tagline">DRAW, GUESS & WIN</p>
+          <p className="tagline">DRAW, GUESS and WIN</p>
         </div>
       </header>
 

@@ -68,5 +68,27 @@ void server_remove_client(server_t *server, int client_index);
 // Dọn dẹp và đóng server
 void server_cleanup(server_t *server);
 
+/**
+ * Tìm room mà client đang ở trong
+ * @param server Con trỏ đến server_t
+ * @param user_id User ID của client
+ * @return Con trỏ đến room_t nếu tìm thấy, NULL nếu không
+ */
+room_t* server_find_room_by_user(server_t* server, int user_id);
+
+/**
+ * Broadcast message đến tất cả clients trong phòng
+ * @param server Con trỏ đến server_t
+ * @param room_id Room ID cần broadcast
+ * @param msg_type Message type
+ * @param payload Payload data
+ * @param payload_len Payload length
+ * @param exclude_user_id User ID cần loại trừ (hoặc -1 nếu không loại trừ)
+ * @return Số lượng clients đã nhận được message, -1 nếu lỗi
+ */
+int server_broadcast_to_room(server_t* server, int room_id, uint8_t msg_type, 
+                             const uint8_t* payload, uint16_t payload_len, 
+                             int exclude_user_id);
+
 #endif // SERVER_H
 

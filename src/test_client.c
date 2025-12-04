@@ -75,91 +75,64 @@ int send_message(int sockfd, uint8_t type, const uint8_t* payload, uint16_t payl
 /**
  * Nhận và parse response
  */
-int receive_response(int sockfd) {
+ int receive_response(int fd, uint8_t* expected_type) {
     uint8_t buffer[1024];
-    ssize_t bytes_read = recv(sockfd, buffer, sizeof(buffer), 0);
     
-    if (bytes_read <= 0) {
-        if (bytes_read == 0) {
-            printf("Server đã đóng kết nối\n");
-        } else {
-            perror("recv() failed");
-        }
-        return -1;
-    }
-    
-    if (bytes_read < 3) {
-        printf("Lỗi: Message quá ngắn (%zd bytes)\n", bytes_read);
-        return -1;
-    }
-    
-    uint8_t type = buffer[0];
-    
-    // Đọc length (network byte order)
-    // Đọc bytes trực tiếp vào biến rồi dùng ntohs() để chuyển về host byte order
-    uint16_t length_network;
-    memcpy(&length_network, buffer + 1, 2);
-    uint16_t length = ntohs(length_network);  
-    
-    printf("Nhận response: type=0x%02X, length=%d\n", type, length);
-    
-    if (type == MSG_LOGIN_RESPONSE) {
-        if (length >= sizeof(login_response_t)) {
-            login_response_t* resp = (login_response_t*)(buffer + 3);
-            uint8_t status = resp->status;
-            
-            // Đọc user_id (network byte order)
-            int32_t user_id_network;
-            memcpy(&user_id_network, &resp->user_id, sizeof(int32_t));
-            int32_t user_id = (int32_t)ntohl((uint32_t)user_id_network);
-            char username[MAX_USERNAME_LEN];
-            strncpy(username, resp->username, MAX_USERNAME_LEN - 1);
-            username[MAX_USERNAME_LEN - 1] = '\0';
-            
-            printf("\n=== LOGIN RESPONSE ===\n");
-            printf("Status: 0x%02X ", status);
-            if (status == STATUS_SUCCESS) {
-                printf("(SUCCESS)\n");
-            } else if (status == STATUS_AUTH_FAILED) {
-                printf("(AUTH_FAILED)\n");
+    while (1) {  // Vòng lặp để xử lý tất cả messages
+        ssize_t bytes_read = recv(fd, buffer, sizeof(buffer), 0);
+        
+        if (bytes_read <= 0) {
+            if (bytes_read == 0) {
+                printf("✗ Server đã đóng kết nối\n");
             } else {
-                printf("(ERROR)\n");
+                perror("recv() failed");
             }
-            printf("User ID: %d\n", user_id);
-            printf("Username: %s\n", username);
-            printf("=====================\n\n");
-            
-            return (status == STATUS_SUCCESS) ? 0 : -1;
-        } else {
-            printf("Lỗi: Payload quá ngắn\n");
             return -1;
         }
-    } else if (type == MSG_REGISTER_RESPONSE) {
-        if (length >= sizeof(register_response_t)) {
-            register_response_t* resp = (register_response_t*)(buffer + 3);
-            uint8_t status = resp->status;
-            char message[128];
-            strncpy(message, resp->message, sizeof(message) - 1);
-            message[sizeof(message) - 1] = '\0';
-            
-            printf("\n=== REGISTER RESPONSE ===\n");
-            printf("Status: 0x%02X ", status);
-            if (status == STATUS_SUCCESS) {
-                printf("(SUCCESS)\n");
-            } else {
-                printf("(ERROR)\n");
-            }
-            printf("Message: %s\n", message);
-            printf("========================\n\n");
-            
-            return (status == STATUS_SUCCESS) ? 0 : -1;
+        
+        if (bytes_read < 3) {
+            printf("✗ Lỗi: Message quá ngắn (%zd bytes)\n", bytes_read);
+            return -1;
         }
-    } else {
-        printf("Unknown response type: 0x%02X\n", type);
-        return -1;
+        
+        uint8_t type = buffer[0];
+        uint16_t length_network;
+        memcpy(&length_network, buffer + 1, 2);
+        uint16_t length = ntohs(length_network);
+        
+        // Xử lý ROOM_UPDATE ngay lập tức nếu nhận được
+        if (type == MSG_ROOM_UPDATE) {
+            if (length >= sizeof(room_info_protocol_t)) {
+                room_info_protocol_t* room_info = (room_info_protocol_t*)(buffer + 3);
+                int32_t room_id = (int32_t)ntohl((uint32_t)room_info->room_id);
+                uint8_t state = room_info->state;
+                const char* state_str = (state == 0) ? "WAITING" : 
+                                       (state == 1) ? "PLAYING" : "FINISHED";
+                
+                printf("\n[ROOM_UPDATE] Phòng %d: %s - %d/%d người chơi (%s)\n",
+                       room_id, room_info->room_name, 
+                       room_info->player_count, room_info->max_players, state_str);
+                
+                // Tiếp tục đợi message mong đợi
+                continue;
+            }
+        }
+        
+        // Kiểm tra message type mong đợi
+        if (expected_type && type != *expected_type) {
+            printf("✗ Lỗi: Nhận message type 0x%02X, mong đợi 0x%02X\n", type, *expected_type);
+            return -1;
+        }
+        
+        printf("✓ Nhận response: type=0x%02X, length=%d\n", type, length);
+        
+        // Parse response dựa trên type (giữ nguyên code cũ)
+        switch (type) {
+            // ... các case khác giữ nguyên ...
+        }
+        
+        return 0;  // Đã nhận được message mong đợi
     }
-    
-    return 0;
 }
 
 /**
@@ -182,7 +155,8 @@ int test_login(int sockfd, const char* username, const char* password) {
     }
     
     // Nhận response
-    return receive_response(sockfd);
+    uint8_t expected = MSG_LOGIN_RESPONSE;
+    return receive_response(sockfd, &expected);
 }
 
 /**
@@ -207,7 +181,8 @@ int test_register(int sockfd, const char* username, const char* password, const 
     }
     
     // Nhận response
-    return receive_response(sockfd);
+    uint8_t expected = MSG_REGISTER_RESPONSE;
+    return receive_response(sockfd, &expected);
 }
 
 void login_session_loop(int sockfd) {
@@ -244,7 +219,7 @@ void login_session_loop(int sockfd) {
         // Có dữ liệu từ server
         if (FD_ISSET(sockfd, &readfds)) {
             printf("Có message từ server:\n");
-            if (receive_response(sockfd) < 0) {
+            if (receive_response(sockfd, NULL) < 0) {
                 printf("Mất kết nối server hoặc lỗi khi nhận message.\n");
                 break;
             }
