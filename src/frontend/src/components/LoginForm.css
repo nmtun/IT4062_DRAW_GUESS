@@ -23,11 +23,12 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    position: relative;
+    padding: 20px;
 }
 
 .avatar {
     position: relative;
-    display: inline-block;
     width: 120px;
     height: 120px;
     border-radius: 50%;
@@ -51,8 +52,8 @@
     position: absolute;
     bottom: 5px;
     right: 5px;
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     border: 2px solid white;
     background: #4a90e2;
@@ -62,8 +63,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
     transition: transform 0.2s;
+    z-index: 10;
 }
 
 .edit-avatar:hover:not(:disabled) {
@@ -198,15 +200,19 @@
     box-shadow: 0 4px 10px rgba(0,0,0,0.15);
 }
 
-.btn-play {
-    background: #ffd700;
-    color: #333;
+/* LoginForm specific btn-play with higher specificity */
+.auth-form .btn-play {
+    background: #ffd700 !important;
+    color: #333 !important;
+    border: 2px solid #ffd700;
+    text-shadow: 1px 1px 2px rgba(255,255,255,0.3);
 }
 
-.btn-play:hover:not(:disabled) {
-    background: #ffed4e;
+.auth-form .btn-play:hover:not(:disabled) {
+    background: #ffd700 !important;
     transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4);
+    border-color: #ffd700;
 }
 
 .btn:disabled {
