@@ -103,7 +103,8 @@ bool drawing_validate_action(const draw_action_t *action)
     // Kiểm tra loại hành động
     if (action->action != DRAW_ACTION_MOVE &&
         action->action != DRAW_ACTION_LINE &&
-        action->action != DRAW_ACTION_CLEAR)
+        action->action != DRAW_ACTION_CLEAR &&
+        action->action != DRAW_ACTION_ERASE)
     {
         return false;
     }
@@ -111,6 +112,25 @@ bool drawing_validate_action(const draw_action_t *action)
     // Với hành động CLEAR, tọa độ và độ rộng không quan trọng
     if (action->action == DRAW_ACTION_CLEAR)
     {
+        return true;
+    }
+
+    // Với hành động ERASE, cần tọa độ và độ rộng hợp lệ
+    if (action->action == DRAW_ACTION_ERASE)
+    {
+        // Kiểm tra tọa độ
+        if (action->x1 >= MAX_CANVAS_WIDTH || action->y1 >= MAX_CANVAS_HEIGHT ||
+            action->x2 >= MAX_CANVAS_WIDTH || action->y2 >= MAX_CANVAS_HEIGHT)
+        {
+            return false;
+        }
+
+        // Kiểm tra độ rộng bút xóa
+        if (action->width < MIN_BRUSH_WIDTH || action->width > MAX_BRUSH_WIDTH)
+        {
+            return false;
+        }
+
         return true;
     }
 
@@ -161,5 +181,26 @@ void drawing_create_line_action(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t 
     action->x2 = x2;
     action->y2 = y2;
     action->color = color;
+    action->width = width;
+}
+
+/**
+ * Tạo hành động ERASE (xóa từng phần)
+ * Color sẽ được set thành 0 (không quan trọng vì client sẽ dùng destination-out)
+ */
+void drawing_create_erase_action(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2,
+                                 uint8_t width, draw_action_t *action)
+{
+    if (!action)
+    {
+        return;
+    }
+
+    action->action = DRAW_ACTION_ERASE;
+    action->x1 = x1;
+    action->y1 = y1;
+    action->x2 = x2;
+    action->y2 = y2;
+    action->color = 0;  // Không quan trọng, client sẽ dùng destination-out
     action->width = width;
 }

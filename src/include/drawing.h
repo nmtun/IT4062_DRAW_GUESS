@@ -9,7 +9,8 @@
 typedef enum {
     DRAW_ACTION_MOVE = 0,
     DRAW_ACTION_LINE = 1,
-    DRAW_ACTION_CLEAR = 2
+    DRAW_ACTION_CLEAR = 2,
+    DRAW_ACTION_ERASE = 3
 } draw_action_type_t;
 
 // Drawing action structure
@@ -71,5 +72,15 @@ void drawing_create_clear_action(draw_action_t* action);
  */
 void drawing_create_line_action(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2,
                                 uint32_t color, uint8_t width, draw_action_t* action);
+
+/**
+ * Tạo hành động ERASE (xóa từng phần)
+ * @param x1, y1 Tọa độ điểm bắt đầu
+ * @param x2, y2 Tọa độ điểm kết thúc
+ * @param width Độ rộng bút xóa
+ * @param action Cấu trúc draw_action_t đầu ra
+ */
+void drawing_create_erase_action(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2,
+                                 uint8_t width, draw_action_t* action);
 
 #endif // DRAWING_H
