@@ -13,10 +13,24 @@
   gap: 12px;
 }
 
-.room-card:hover {
+.room-card:hover:not(.disabled) {
   transform: translateY(-4px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   border-color: rgba(102, 126, 234, 0.6);
+}
+
+.room-card.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #f8f9fa;
+}
+
+.room-card.disabled .room-icon {
+  background: linear-gradient(135deg, #adb5bd 0%, #6c757d 100%);
+}
+
+.room-card.disabled .room-name {
+  color: #6c757d;
 }
 
 .room-icon {

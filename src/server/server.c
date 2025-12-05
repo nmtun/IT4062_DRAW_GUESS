@@ -270,6 +270,9 @@ void server_handle_disconnect(server_t *server, int client_index) {
                 room_destroy(room);
                 printf("Phòng '%s' (ID: %d) đã bị xóa vì không còn người chơi\n",
                        room_name, room_id);
+                
+                // Broadcast danh sách phòng cho tất cả clients đã đăng nhập
+                protocol_broadcast_room_list(server);
             } else {
                 // Broadcast ROOM_PLAYERS_UPDATE với danh sách đầy đủ (đã bao gồm tất cả thông tin phòng)
                 protocol_broadcast_room_players_update(server, room, 1, // 1 = LEAVE
