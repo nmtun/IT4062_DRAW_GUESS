@@ -179,14 +179,17 @@ typedef struct {
 // Sử dụng room_info_protocol_t trực tiếp
 
 // Player info structure (dùng trong ROOM_PLAYERS_UPDATE)
+#pragma pack(1)
 typedef struct {
     int32_t user_id;
     char username[MAX_USERNAME_LEN];
     uint8_t is_owner;  // 1 nếu là owner, 0 nếu không
 } player_info_protocol_t;
+#pragma pack()
 
 // ROOM_PLAYERS_UPDATE payload structure (broadcast khi có thay đổi)
 // Bao gồm tất cả thông tin phòng + thông tin thay đổi người chơi
+#pragma pack(1)
 typedef struct {
     int32_t room_id;
     char room_name[MAX_ROOM_NAME_LEN];
@@ -199,6 +202,7 @@ typedef struct {
     uint16_t player_count;       // Số lượng người chơi hiện tại
     // Sau đó là mảng: player_info_protocol_t[player_count] (danh sách đầy đủ)
 } room_players_update_t;
+#pragma pack()
 
 #endif // PROTOCOL_H
 

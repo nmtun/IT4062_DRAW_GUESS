@@ -543,6 +543,17 @@ int protocol_handle_create_room(server_t *server, int client_index, const messag
     // Broadcast danh sách phòng cho tất cả clients đã đăng nhập
     protocol_broadcast_room_list(server);
 
+    // Gửi ROOM_PLAYERS_UPDATE cho chính phòng vừa tạo
+    // Đảm bảo client tạo phòng nhìn thấy mình là owner và danh sách người chơi hiện tại
+    protocol_broadcast_room_players_update(
+        server,
+        room,
+        0, // action = JOIN
+        client->user_id,
+        client->username,
+        -1 // không loại trừ ai; gửi cho tất cả trong phòng (hiện tại chỉ có owner)
+    );
+
     return 0;
 }
 
@@ -633,9 +644,10 @@ int protocol_handle_join_room(server_t *server, int client_index, const message_
                                      "Tham gia phòng thành công");
 
     // Broadcast ROOM_PLAYERS_UPDATE với danh sách đầy đủ (đã bao gồm tất cả thông tin phòng)
+    // Gửi cho TẤT CẢ clients trong phòng, bao gồm cả client vừa join
     protocol_broadcast_room_players_update(server, room, 0, // 0 = JOIN
                                            client->user_id, client->username,
-                                           client_index);
+                                           -1); // -1 = không exclude ai
 
     printf("Client %d (user_id=%d, username=%s) đã tham gia phòng '%s' (ID: %d)\n",
            client_index, client->user_id, client->username, room->room_name, room_id);

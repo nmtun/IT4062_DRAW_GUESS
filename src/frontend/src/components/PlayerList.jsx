@@ -2,46 +2,24 @@ import React from 'react';
 import './PlayerList.css';
 import { getAvatar, getCurrentUser } from '../utils/userStorage';
 
-const MAX_PLAYERS = 10;
-
-export default function PlayerList({ players = [], currentUserId = null, maxPlayers = MAX_PLAYERS }) {
-  // Tạo danh sách đầy đủ với các slot trống
-  const displayPlayers = [];
-  
-  // Thêm players hiện có với thông tin đầy đủ
-  players.forEach(player => {
-    // Lấy avatar từ localStorage hoặc avatar mặc định cho player hiện tại
+export default function PlayerList({ players, currentUserId }) {
+  console.log('Rendering PlayerList with players:', players, 'and currentUserId:', currentUserId);
+  // Chỉ hiển thị đúng danh sách players truyền vào, không tạo slot trống
+  const displayPlayers = players.map(player => {
     let playerAvatar = player.avatar;
     if (player.id === currentUserId) {
-      // Nếu là user hiện tại, lấy avatar từ localStorage
       const currentUser = getCurrentUser();
       playerAvatar = currentUser?.avatar || getAvatar();
     }
-
-    // Nếu avatar không phải là emoji, tạo đường dẫn đến file ảnh
     let avatarDisplay = playerAvatar;
     if (playerAvatar && !playerAvatar.includes('👤') && !playerAvatar.includes('🎭') && playerAvatar.includes('.jpg')) {
       avatarDisplay = `/src/assets/avt/${playerAvatar}`;
     }
-
-    displayPlayers.push({
+    return {
       ...player,
-      avatar: avatarDisplay,
-      isEmpty: false
-    });
+      avatar: avatarDisplay
+    };
   });
-  
-  // Thêm các slot trống
-  for (let i = players.length; i < maxPlayers; i++) {
-    displayPlayers.push({
-      id: `empty-${i}`,
-      username: 'Trống',
-      avatar: '👤',
-      score: 0,
-      isDrawing: false,
-      isEmpty: true
-    });
-  }
 
   return (
     <div className="player-list">
@@ -49,10 +27,10 @@ export default function PlayerList({ players = [], currentUserId = null, maxPlay
         <h3>Draw & Guess</h3>
       </div>
       <div className="players-container">
-        {displayPlayers.map((player) => (
+        {displayPlayers.map((player, index) => (
           <div
-            key={player.id}
-            className={`player-item ${player.id === currentUserId ? 'current-player' : ''} ${player.isDrawing ? 'drawing' : ''} ${player.isEmpty ? 'empty-slot' : ''}`}
+            key={player.id || `slot-${index}`}
+            className={`player-item ${player.id === currentUserId ? 'current-player' : ''} ${player.isDrawing ? 'drawing' : ''}`}
           >
             <div className="player-avatar">
               {player.avatar && player.avatar.startsWith('/src/assets/') ? (

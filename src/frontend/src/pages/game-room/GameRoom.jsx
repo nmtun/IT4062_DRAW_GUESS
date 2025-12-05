@@ -27,6 +27,7 @@ export default function GameRoom({
   const [timeLeft, setTimeLeft] = useState(externalTimeLeft);
   const [word, setWord] = useState(externalWord);
   const [players, setPlayers] = useState(externalPlayers);
+  const [maxPlayers, setMaxPlayers] = useState(10);
 
   // Kết nối + join room và subscribe events
   useEffect(() => {
@@ -34,8 +35,15 @@ export default function GameRoom({
     const services = getServices();
 
     const handleRoomPlayersUpdate = (data) => {
-      // data từ gateway/index.js: { room_id, players: [{user_id, username, is_owner}], player_count, ... }
-      if (!data || data.room_id?.toString() !== roomId?.toString()) return;
+      console.log('Received room_players_update:', data);
+      if (!data || data.room_id?.toString() !== roomId?.toString()) {
+        return;
+      }
+
+      // Cập nhật maxPlayers nếu có
+      if (typeof data.max_players === 'number') {
+        setMaxPlayers(data.max_players);
+      }
 
       const mapped = (data.players || []).map(p => ({
         id: p.user_id,
@@ -45,6 +53,8 @@ export default function GameRoom({
         isDrawing: false,     // cập nhật theo game events khi có
         isOwner: p.is_owner === 1
       }));
+
+      console.log('Updated players:', mapped);
       setPlayers(mapped);
     };
 
@@ -55,40 +65,86 @@ export default function GameRoom({
       // state: 0=waiting,1=playing,2=finished
       const states = { 0: 'waiting', 1: 'playing', 2: 'finished' };
       setGameState(states[data.state] || 'waiting');
+
+      if (typeof data.max_players === 'number') {
+        setMaxPlayers(data.max_players);
+      }
     };
 
     const subscribe = () => {
+      console.log('[GameRoom] Subscribing to room events...');
+      
+      // Global listener để debug tất cả messages
+      services.subscribe('*', (message) => {
+        console.log('[GameRoom] Received any message:', message);
+      });
+      
       services.subscribe('room_players_update', handleRoomPlayersUpdate);
       services.subscribe('room_update', handleRoomUpdate);
+      console.log('[GameRoom] Subscribed to room events');
     };
 
     const unsubscribe = () => {
+      services.unsubscribe('*'); // Remove global listener
       services.unsubscribe('room_players_update', handleRoomPlayersUpdate);
       services.unsubscribe('room_update', handleRoomUpdate);
     };
 
     // Đảm bảo dùng cùng kết nối đã đăng nhập
+    console.log('[GameRoom] Connecting to services for room:', roomId);
     services.connect()
       .then(() => {
-        // Join room để server broadcast danh sách người chơi hiện tại
-        services.joinRoom(parseInt(roomId, 10));
+        console.log('[GameRoom] Connected to services successfully');
+        // Đăng ký lắng nghe NGAY để không bỏ lỡ broadcast
         subscribe();
+        
+        const id = parseInt(roomId, 10);
+        const current = services.currentRoomId;
+        console.log('[GameRoom] Current room ID:', current, 'Target room ID:', id);
+        
+        // Kiểm tra cache trước tiên
+        const cached = services.getCachedRoomUpdate(id);
+        if (cached) {
+          console.log('[GameRoom] Using cached room data:', cached);
+          handleRoomPlayersUpdate(cached);
+        }
+        
+        if (current !== id) {
+          console.log('[GameRoom] Joining room:', id);
+          // Join room - server sẽ broadcast room_players_update sau khi join thành công
+          services.joinRoom(id).then((response) => {
+            console.log('[GameRoom] Join room response:', response);
+            // room_players_update sẽ được broadcast và handle bởi subscription
+          }).catch((err) => {
+            console.error('[GameRoom] Join room error:', err);
+          });
+        } else {
+          console.log('[GameRoom] Already in room. Waiting for server broadcasts...');
+          // Server sẽ tự broadcast room_players_update khi có thay đổi
+          // Client chỉ cần chờ, không cần request thêm
+        }
       })
       .catch((err) => {
         console.error('Connect error:', err);
       });
 
     return () => {
-      // Rời phòng và cleanup
+      // Chỉ cleanup subscriptions, KHÔNG tự động rời phòng
+      // Việc rời phòng sẽ được xử lý explicit trong handleLeaveRoom
+      console.log('[GameRoom] Cleaning up subscriptions only, not leaving room');
       unsubscribe();
-      services.leaveRoom(parseInt(roomId, 10));
     };
   }, [roomId]);
 
   const handleLeaveRoom = () => {
+    console.log('[GameRoom] User explicitly leaving room:', roomId);
     const services = getServices();
     if (roomId) {
-      services.leaveRoom(parseInt(roomId, 10));
+      services.leaveRoom(parseInt(roomId, 10)).then(() => {
+        console.log('[GameRoom] Successfully left room');
+      }).catch((err) => {
+        console.warn('[GameRoom] Error leaving room:', err);
+      });
     }
     if (onLeaveRoom) {
       onLeaveRoom();
@@ -133,7 +189,7 @@ export default function GameRoom({
         <div className="game-layout">
           {/* Left Panel - Player List */}
           <aside className="game-sidebar left">
-            <PlayerList players={players} currentUserId={user?.id} />
+            <PlayerList players={players} currentUserId={user?.id} maxPlayers={maxPlayers} />
           </aside>
 
           {/* Center Panel - Canvas */}

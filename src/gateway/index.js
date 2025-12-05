@@ -61,6 +61,7 @@ class Gateway {
 
                         messages.forEach(messageData => {
                             const message = this.parseTcpMessage(messageData);
+                            Logger.info(`[Gateway] Sending message to WebSocket client: ${message.type}`, message);
                             if (ws.readyState === WebSocket.OPEN) {
                                 ws.send(JSON.stringify(message));
                                 this.performanceMonitor.incrementMessagesSent();
@@ -484,6 +485,8 @@ class Gateway {
 
             players.push({ user_id, username, is_owner });
         }
+
+        Logger.info('room infor and data players:', { room_id, room_name, max_players, state, owner_id, action, changed_user_id, changed_username, player_count, players });
 
         return {
             room_id,
