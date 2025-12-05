@@ -141,7 +141,6 @@ int protocol_handle_login(server_t* server, int client_index, const message_t* m
         strncpy(client->username, username, sizeof(client->username) - 1);
         client->username[sizeof(client->username) - 1] = '\0';
         client->state = CLIENT_STATE_LOGGED_IN;
-        
         protocol_send_login_response(client->fd, STATUS_SUCCESS, user_id, username);
         printf("Client %d đăng nhập thành công: user_id=%d, username=%s\n", 
                client_index, user_id, username);
