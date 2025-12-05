@@ -60,10 +60,38 @@ class Gateway {
                         const messages = messageBuffer.addData(data);
                         
                         messages.forEach(messageData => {
-                            const message = this.parseTcpMessage(messageData);
-                            if (ws.readyState === WebSocket.OPEN) {
-                                ws.send(JSON.stringify(message));
-                                this.performanceMonitor.incrementMessagesSent();
+                            // Kiểm tra message type để quyết định gửi binary hay JSON
+                            if (messageData.length >= 1) {
+                                const msgType = messageData.readUInt8(0);
+                                
+                                // Nếu là binary messages (DRAW_BROADCAST, DRAW_DATA, LOGIN_RESPONSE, etc.), gửi binary
+                                // LOGIN_RESPONSE (0x02), DRAW_DATA (0x22), DRAW_BROADCAST (0x23) và các message khác
+                                // Client HTML đang mong đợi binary cho tất cả messages
+                                if (msgType === 0x02 || msgType === 0x22 || msgType === 0x23 || 
+                                    msgType === 0x04 || msgType === 0x11 || msgType === 0x15) {
+                                    // Gửi binary trực tiếp
+                                    if (ws.readyState === WebSocket.OPEN) {
+                                        ws.send(messageData);
+                                        this.performanceMonitor.incrementMessagesSent();
+                                        Logger.debug(`Forwarded binary message type 0x${msgType.toString(16)} to WebSocket`);
+                                    }
+                                } else {
+                                    // Parse thành JSON và gửi
+                                    try {
+                                        const message = this.parseTcpMessage(messageData);
+                                        if (ws.readyState === WebSocket.OPEN) {
+                                            ws.send(JSON.stringify(message));
+                                            this.performanceMonitor.incrementMessagesSent();
+                                        }
+                                    } catch (parseError) {
+                                        // Nếu không parse được, gửi binary
+                                        Logger.warn('Could not parse message, sending as binary');
+                                        if (ws.readyState === WebSocket.OPEN) {
+                                            ws.send(messageData);
+                                            this.performanceMonitor.incrementMessagesSent();
+                                        }
+                                    }
+                                }
                             }
                         });
                     } catch (error) {
@@ -103,32 +131,52 @@ class Gateway {
         // Xử lý tin nhắn từ WebSocket client
         ws.on('message', async (data) => {
             try {
-                const message = JSON.parse(data.toString());
-                Logger.debug('Received WebSocket message:', message);
-                this.performanceMonitor.incrementMessagesReceived();
-                
-                // Validate message
-                MessageValidator.validateWebSocketMessage(message);
-                
-                if (!isConnected) {
-                    await connectToTcpServer();
-                }
-                
-                if (isConnected) {
-                    this.forwardToTcpServer(tcpClient, message);
+                // Kiểm tra nếu là binary message (ArrayBuffer hoặc Buffer)
+                if (Buffer.isBuffer(data) || data instanceof ArrayBuffer) {
+                    // Binary message - pass through trực tiếp
+                    Logger.debug('Received binary message, forwarding to TCP');
+                    this.performanceMonitor.incrementMessagesReceived();
+                    
+                    if (!isConnected) {
+                        await connectToTcpServer();
+                    }
+                    
+                    if (isConnected && tcpClient && tcpClient.writable) {
+                        const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
+                        tcpClient.write(buffer);
+                        Logger.debug('Forwarded binary message to TCP server');
+                    } else {
+                        Logger.warn('Cannot forward binary message - TCP not connected');
+                    }
                 } else {
-                    Logger.warn('Cannot forward message - TCP not connected');
-                    ws.send(JSON.stringify({
-                        type: 'error',
-                        data: { message: 'Server temporarily unavailable' }
-                    }));
+                    // JSON message - parse và convert
+                    const message = JSON.parse(data.toString());
+                    Logger.debug('Received WebSocket message:', message);
+                    this.performanceMonitor.incrementMessagesReceived();
+                    
+                    // Validate message
+                    MessageValidator.validateWebSocketMessage(message);
+                    
+                    if (!isConnected) {
+                        await connectToTcpServer();
+                    }
+                    
+                    if (isConnected) {
+                        this.forwardToTcpServer(tcpClient, message);
+                    } else {
+                        Logger.warn('Cannot forward message - TCP not connected');
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            data: { message: 'Server temporarily unavailable' }
+                        }));
+                    }
                 }
             } catch (error) {
                 Logger.error('Error handling WebSocket message:', error);
                 this.performanceMonitor.incrementErrors();
                 
-                // Send error back to client
-                if (ws.readyState === WebSocket.OPEN) {
+                // Send error back to client (chỉ nếu là JSON connection)
+                if (ws.readyState === WebSocket.OPEN && !Buffer.isBuffer(data) && !(data instanceof ArrayBuffer)) {
                     ws.send(JSON.stringify({
                         type: 'error',
                         data: { message: error.message || 'Invalid message format' }
@@ -252,6 +300,8 @@ class Gateway {
         const types = {
             0x02: 'login_response',
             0x04: 'register_response',
+            0x22: 'draw_data',
+            0x23: 'draw_broadcast',
             // import các message khác ở đây
         };
         return types[type] || 'unknown';

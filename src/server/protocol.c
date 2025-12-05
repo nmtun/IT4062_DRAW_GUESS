@@ -9,6 +9,7 @@ extern int protocol_handle_room_list_request(server_t* server, int client_index,
 extern int protocol_handle_create_room(server_t* server, int client_index, const message_t* msg);
 extern int protocol_handle_join_room(server_t* server, int client_index, const message_t* msg);
 extern int protocol_handle_leave_room(server_t* server, int client_index, const message_t* msg);
+extern int protocol_handle_draw_data(server_t* server, int client_index, const message_t* msg);
 
 /**
  * Xử lý message nhận được từ client
@@ -41,6 +42,9 @@ int protocol_handle_message(server_t* server, int client_index, const message_t*
 
         case MSG_LEAVE_ROOM:
             return protocol_handle_leave_room(server, client_index, msg);
+
+        case MSG_DRAW_DATA:
+            return protocol_handle_draw_data(server, client_index, msg);
             
         default:
             fprintf(stderr, "Unknown message type: 0x%02X từ client %d\n", 

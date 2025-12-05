@@ -116,7 +116,7 @@ TARGET = main$(EXE)
 # Source files
 SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/server.c $(SRC_DIR)/database.c $(SRC_DIR)/auth.c \
        $(SRC_DIR)/protocol.c $(SRC_DIR)/protocol_core.c $(SRC_DIR)/protocol_auth.c $(SRC_DIR)/protocol_room.c \
-       $(SRC_DIR)/room.c $(SRC_DIR)/drawing.c
+       $(SRC_DIR)/protocol_drawing.c $(SRC_DIR)/room.c $(SRC_DIR)/drawing.c
 
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
@@ -129,9 +129,9 @@ TEST_ROOM_OBJS = $(OBJ_DIR)/room.o
 #  Build rules
 # ============================
 
-all: $(TARGET) test_client room_test test_room
+all: $(TARGET) test_client room_test test_room drawing_test
 	@echo "Built for: $(PLATFORM)"
-	@echo "Executables: $(TARGET), test_client, room_test, $(TEST_ROOM)"
+	@echo "Executables: $(TARGET), test_client, room_test, $(TEST_ROOM), drawing_test"
 
 # Test client
 # Tắt flag sinh ra .dSYM và .yml cho target này (không dùng -g, không sinh debug info)
@@ -148,18 +148,27 @@ room_test: room_test.c
 	@echo "Run with: ./room_test"
 
 # Test room module
+# Tắt flag debug để không sinh ra .dSYM
 test_room: $(TEST_ROOM_OBJS) $(TEST_ROOM_SRC)
 	@echo "Building room module test..."
-	$(CC) $(CFLAGS) -I$(HEADER_DIR) $(TEST_ROOM_SRC) $(TEST_ROOM_OBJS) -o $(TEST_ROOM)
+	$(CC) -Wall -Wextra -O2 -I$(HEADER_DIR) $(TEST_ROOM_SRC) $(TEST_ROOM_OBJS) -o $(TEST_ROOM)
 	@echo "Test room built: ./$(TEST_ROOM)"
 	@echo "Run with: ./$(TEST_ROOM)"
 
 # Test drawing module
+# Tắt flag debug để không sinh ra .dSYM
 test_drawing: $(OBJ_DIR)/drawing.o test_drawing.c
 	@echo "Building drawing module test..."
-	$(CC) $(CFLAGS) -I$(HEADER_DIR) test_drawing.c $(OBJ_DIR)/drawing.o -o test_drawing
+	$(CC) -Wall -Wextra -O2 -I$(HEADER_DIR) test_drawing.c $(OBJ_DIR)/drawing.o -o test_drawing
 	@echo "Test drawing built: ./test_drawing"
 	@echo "Run with: ./test_drawing"
+
+# Test drawing protocol
+drawing_test: $(OBJ_DIR)/drawing.o drawing_test.c
+	@echo "Building drawing protocol test..."
+	$(CC) -Wall -Wextra -O2 -I$(HEADER_DIR) -Icommon drawing_test.c $(OBJ_DIR)/drawing.o -o drawing_test
+	@echo "Drawing test built: ./drawing_test"
+	@echo "Run with: ./drawing_test send <username> <password> <action> <x1> <y1> <x2> <y2> <color> <width>"
 
 $(TARGET): $(OBJS)
 	@echo "Linking $(TARGET)..."
@@ -187,7 +196,10 @@ clean:
 	$(RM) test_client
 	$(RM) room_test
 	$(RM) $(TEST_ROOM)
+	$(RM) test_room
+	$(RM) test_room.exe
 	$(RM) test_drawing
+	$(RM) drawing_test
 	@echo "Clean complete!"
 
 # ============================
