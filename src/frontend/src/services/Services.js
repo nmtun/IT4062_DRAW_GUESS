@@ -1,7 +1,7 @@
 /**
- * AuthService - Xử lý authentication thông qua WebSocket Gateway
+ * Services - xử lý các dịch vụ thông qua WebSocket Gateway
  */
-class AuthService {
+class Services {
     constructor(gatewayUrl = 'ws://localhost:3000') {
         this.gatewayUrl = gatewayUrl;
         this.ws = null;
@@ -366,6 +366,58 @@ class AuthService {
     }
 
     /**
+     * Tạo phòng mới
+     */
+    createRoom(roomName, maxPlayers = 8, rounds = 3) {
+        const message = {
+            type: 'create_room',
+            data: {
+                room_name: roomName.trim(),
+                max_players: maxPlayers,
+                rounds: rounds
+            }
+        };
+        return this.send(message);
+    }
+
+    /**
+     * Tham gia phòng
+     */
+    joinRoom(roomId) {
+        const message = {
+            type: 'join_room',
+            data: {
+                room_id: parseInt(roomId)
+            }
+        };
+        return this.send(message);
+    }
+
+    /**
+     * Rời phòng
+     */
+    leaveRoom(roomId) {
+        const message = {
+            type: 'leave_room',
+            data: {
+                room_id: parseInt(roomId)
+            }
+        };
+        return this.send(message);
+    }
+
+    /**
+     * Lấy danh sách phòng
+     */
+    getRoomList() {
+        const message = {
+            type: 'room_list',
+            data: {}
+        };
+        return this.send(message);
+    }
+
+    /**
      * Ngắt kết nối
      */
     disconnect() {
@@ -463,13 +515,13 @@ class AuthService {
 }
 
 // Tạo singleton instance
-let authServiceInstance = null;
+let servicesInstance = null;
 
-export const getAuthService = (gatewayUrl) => {
-    if (!authServiceInstance) {
-        authServiceInstance = new AuthService(gatewayUrl);
+export const getServices = (gatewayUrl) => {
+    if (!servicesInstance) {
+        servicesInstance = new Services(gatewayUrl);
     }
-    return authServiceInstance;
+    return servicesInstance;
 };
 
-export default AuthService;
+export default Services;

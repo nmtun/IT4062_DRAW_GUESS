@@ -84,11 +84,13 @@ typedef struct {
 } login_request_t;
 
 // LOGIN_RESPONSE payload structure
+#pragma pack(1)
 typedef struct {
-    uint8_t status;              // STATUS_SUCCESS hoặc STATUS_ERROR
-    int32_t user_id;            // -1 nếu thất bại
+    uint8_t status;
+    int32_t user_id;
     char username[MAX_USERNAME_LEN];
 } login_response_t;
+#pragma pack()
 
 // REGISTER_REQUEST payload structure
 typedef struct {
@@ -98,10 +100,12 @@ typedef struct {
 } register_request_t;
 
 // REGISTER_RESPONSE payload structure
+#pragma pack(1)
 typedef struct {
     uint8_t status;              // STATUS_SUCCESS hoặc STATUS_ERROR
     char message[128];            // Thông báo lỗi hoặc thành công
 } register_response_t;
+#pragma pack()
 
 // Room state enum (phải match với room.h)
 typedef enum {
@@ -118,11 +122,13 @@ typedef struct {
 } create_room_request_t;
 
 // CREATE_ROOM response payload structure
+#pragma pack(1)
 typedef struct {
     uint8_t status;              // STATUS_SUCCESS hoặc STATUS_ERROR
     int32_t room_id;             // -1 nếu thất bại
     char message[128];            // Thông báo lỗi hoặc thành công
 } create_room_response_t;
+#pragma pack()
 
 // JOIN_ROOM request payload structure
 typedef struct {
@@ -130,11 +136,13 @@ typedef struct {
 } join_room_request_t;
 
 // JOIN_ROOM response payload structure
+#pragma pack(1)
 typedef struct {
     uint8_t status;              // STATUS_SUCCESS hoặc STATUS_ERROR
     int32_t room_id;             // -1 nếu thất bại
     char message[128];            // Thông báo lỗi hoặc thành công
 } join_room_response_t;
+#pragma pack()
 
 // LEAVE_ROOM request payload structure
 typedef struct {
@@ -142,12 +150,15 @@ typedef struct {
 } leave_room_request_t;
 
 // LEAVE_ROOM response payload structure
+#pragma pack(1)
 typedef struct {
     uint8_t status;              // STATUS_SUCCESS hoặc STATUS_ERROR
     char message[128];            // Thông báo lỗi hoặc thành công
 } leave_room_response_t;
+#pragma pack()
 
 // Room info structure (dùng cho ROOM_LIST_RESPONSE và ROOM_UPDATE)
+#pragma pack(push, 1)
 typedef struct {
     int32_t room_id;
     char room_name[MAX_ROOM_NAME_LEN];
@@ -156,6 +167,7 @@ typedef struct {
     uint8_t state;                // room_state_protocol_t
     int32_t owner_id;
 } room_info_protocol_t;
+#pragma pack(pop)
 
 // ROOM_LIST_RESPONSE payload structure
 typedef struct {

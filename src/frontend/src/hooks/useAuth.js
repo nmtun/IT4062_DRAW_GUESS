@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getAuthService } from '../services/AuthService';
+import { getServices } from '../services/Services';
 import { saveUserData, getUserData, clearUserData, saveAvatar, getAvatar, getCurrentUser } from '../utils/userStorage';
 
 /**
@@ -10,10 +10,10 @@ export const useAuth = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [user, setUser] = useState(null);
     const [error, setError] = useState(null);
-    const authService = useRef(getAuthService());
+    const services = useRef(getServices());
 
     useEffect(() => {
-        const service = authService.current;
+        const service = services.current;
         let isMounted = true; // Flag để tránh state update sau khi unmount
         
         // Khôi phục user data từ localStorage nếu có
@@ -115,7 +115,7 @@ export const useAuth = () => {
     }, []);
 
     const login = async (username, password, avatar) => {
-        const service = authService.current;
+        const service = services.current;
         let connectionState = service.getConnectionState();
         
         // Kết nối nếu chưa kết nối
@@ -137,7 +137,7 @@ export const useAuth = () => {
         setIsLoading(true);
         setError(null);
 
-        const success = authService.current.login(username, password, avatar);
+        const success = services.current.login(username, password, avatar);
         if (!success) {
             setIsLoading(false);
             setError('Không thể gửi yêu cầu đăng nhập');
@@ -148,7 +148,7 @@ export const useAuth = () => {
     };
 
     const register = async (username, password) => {
-        const service = authService.current;
+        const service = services.current;
         let connectionState = service.getConnectionState();
         
         // Kết nối nếu chưa kết nối
@@ -170,7 +170,7 @@ export const useAuth = () => {
         setIsLoading(true);
         setError(null);
 
-        const success = authService.current.register(username, password);
+        const success = services.current.register(username, password);
         if (!success) {
             setIsLoading(false);
             setError('Không thể gửi yêu cầu đăng ký');
@@ -181,7 +181,7 @@ export const useAuth = () => {
     };
 
     const logout = () => {
-        authService.current.logout();
+        services.current.logout();
         // Xóa user data khỏi localStorage nhưng giữ lại avatar
         clearUserData();
         setUser(null);
@@ -220,7 +220,7 @@ export const useAuth = () => {
         updateAvatar,
 
         // Utils
-        connectionInfo: authService.current.getConnectionInfo()
+        connectionInfo: services.current.getConnectionInfo()
     };
 };
 

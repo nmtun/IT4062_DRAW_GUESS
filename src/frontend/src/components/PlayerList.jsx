@@ -1,16 +1,32 @@
 import React from 'react';
 import './PlayerList.css';
+import { getAvatar, getCurrentUser } from '../utils/userStorage';
 
-const MAX_PLAYERS = 8;
+const MAX_PLAYERS = 10;
 
 export default function PlayerList({ players = [], currentUserId = null, maxPlayers = MAX_PLAYERS }) {
   // Tạo danh sách đầy đủ với các slot trống
   const displayPlayers = [];
   
-  // Thêm players hiện có
+  // Thêm players hiện có với thông tin đầy đủ
   players.forEach(player => {
+    // Lấy avatar từ localStorage hoặc avatar mặc định cho player hiện tại
+    let playerAvatar = player.avatar;
+    if (player.id === currentUserId) {
+      // Nếu là user hiện tại, lấy avatar từ localStorage
+      const currentUser = getCurrentUser();
+      playerAvatar = currentUser?.avatar || getAvatar();
+    }
+
+    // Nếu avatar không phải là emoji, tạo đường dẫn đến file ảnh
+    let avatarDisplay = playerAvatar;
+    if (playerAvatar && !playerAvatar.includes('👤') && !playerAvatar.includes('🎭') && playerAvatar.includes('.jpg')) {
+      avatarDisplay = `/src/assets/avt/${playerAvatar}`;
+    }
+
     displayPlayers.push({
       ...player,
+      avatar: avatarDisplay,
       isEmpty: false
     });
   });
@@ -39,11 +55,18 @@ export default function PlayerList({ players = [], currentUserId = null, maxPlay
             className={`player-item ${player.id === currentUserId ? 'current-player' : ''} ${player.isDrawing ? 'drawing' : ''} ${player.isEmpty ? 'empty-slot' : ''}`}
           >
             <div className="player-avatar">
-              <span>{player.avatar || '👤'}</span>
+              {player.avatar && player.avatar.startsWith('/src/assets/') ? (
+                <img src={player.avatar} alt="avatar" className="avatar-image" />
+              ) : (
+                <span className="avatar-emoji">{player.avatar || '👤'}</span>
+              )}
               {player.isDrawing && <span className="drawing-badge">✏️</span>}
             </div>
             <div className="player-info">
-              <div className="player-name">{player.username}</div>
+              <div className="player-name">
+                {player.username}
+                {player.isOwner && <span className="owner-badge">👑</span>}
+              </div>
               <div className="player-score">{player.score || 0} điểm</div>
             </div>
           </div>
