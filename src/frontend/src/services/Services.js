@@ -1,7 +1,7 @@
 /**
- * AuthService - Xử lý authentication thông qua WebSocket Gateway
+ * Services - xử lý các dịch vụ thông qua WebSocket Gateway
  */
-class AuthService {
+class Services {
     constructor(gatewayUrl = 'ws://localhost:3000') {
         this.gatewayUrl = gatewayUrl;
         this.ws = null;
@@ -14,6 +14,10 @@ class AuthService {
         this.messageQueue = [];
         this.connectionPromise = null;
         this.reconnectTimer = null;
+        // Track current joined room to sequence leave/join correctly
+        this.currentRoomId = null;
+        // Cache latest room updates by room_id
+        this.roomUpdatesCache = new Map();
     }
 
     /**
@@ -40,23 +44,23 @@ class AuthService {
             try {
                 console.log(`Connecting to gateway at ${this.gatewayUrl}`);
                 this.ws = new WebSocket(this.gatewayUrl);
-                
+
                 this.ws.onopen = () => {
                     console.log('Connected to gateway successfully');
                     this.isConnected = true;
                     this.isConnecting = false;
                     this.reconnectAttempts = 0;
                     this.connectionPromise = null;
-                    
+
                     // Clear any existing reconnect timer
                     if (this.reconnectTimer) {
                         clearTimeout(this.reconnectTimer);
                         this.reconnectTimer = null;
                     }
-                    
+
                     // Gửi các message đã được queue
                     this.processMessageQueue();
-                    
+
                     resolve(true);
                 };
 
@@ -69,7 +73,7 @@ class AuthService {
                     this.isConnected = false;
                     this.isConnecting = false;
                     this.connectionPromise = null;
-                    
+
                     // Chỉ reconnect nếu không phải do user đóng kết nối và không đang disconnect
                     if (event.code !== 1000 && !this.isDisconnecting) {
                         this.attemptReconnect();
@@ -87,10 +91,10 @@ class AuthService {
                             // Avoid closing while CONNECTING to prevent browser error spam
                             const wsRef = this.ws;
                             wsRef.addEventListener('open', () => {
-                                try { wsRef.close(1006, 'Error during connect'); } catch (_) {}
+                                try { wsRef.close(1006, 'Error during connect'); } catch (_) { }
                             }, { once: true });
                         }
-                    } catch (_) {}
+                    } catch (_) { }
                     reject(error);
                 };
 
@@ -121,8 +125,24 @@ class AuthService {
     handleMessage(event) {
         try {
             const message = JSON.parse(event.data);
-            console.log('Received message:', message);
+            console.log('[Services] Received message:', message.type, message);
             
+            // Cache room updates for later replay
+            if (message.type === 'room_players_update' && message.data?.room_id) {
+                this.roomUpdatesCache.set(message.data.room_id, message.data);
+                console.log('[Services] Cached room_players_update for room:', message.data.room_id);
+            }
+            
+            // Update internal room tracking for relevant responses
+            try {
+                if (message.type === 'create_room_response' && message.data?.status === 'success' && typeof message.data.room_id === 'number') {
+                    this.currentRoomId = message.data.room_id;
+                }
+                if (message.type === 'leave_room_response' && message.data?.status === 'success') {
+                    this.currentRoomId = null;
+                }
+            } catch (_) { }
+
             // Trigger callbacks nếu có
             if (this.callbacks.has(message.type)) {
                 const callbackSet = this.callbacks.get(message.type);
@@ -143,7 +163,7 @@ class AuthService {
                     }
                 }
             }
-            
+
             // Trigger global callback nếu có
             if (this.callbacks.has('*')) {
                 const callbackSet = this.callbacks.get('*');
@@ -165,7 +185,7 @@ class AuthService {
             }
         } catch (error) {
             console.error('Error parsing message:', error);
-            
+
             // Trigger error callback
             if (this.callbacks.has('error')) {
                 const callbackSet = this.callbacks.get('error');
@@ -200,7 +220,7 @@ class AuthService {
 
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
             console.error('Max reconnection attempts reached');
-            
+
             if (this.callbacks.has('connection_failed')) {
                 const callbackSet = this.callbacks.get('connection_failed');
                 if (callbackSet instanceof Set) {
@@ -224,14 +244,14 @@ class AuthService {
 
         this.reconnectAttempts++;
         const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 10000);
-        
+
         console.log(`Reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`);
-        
+
         // Clear any existing timer
         if (this.reconnectTimer) {
             clearTimeout(this.reconnectTimer);
         }
-        
+
         this.reconnectTimer = setTimeout(() => {
             this.reconnectTimer = null;
             // Kiểm tra lại trạng thái trước khi reconnect
@@ -260,7 +280,7 @@ class AuthService {
         if (!this.callbacks.has(messageType)) {
             this.callbacks.set(messageType, new Set());
         }
-        
+
         const callbackSet = this.callbacks.get(messageType);
         if (callbackSet instanceof Set) {
             callbackSet.add(callback);
@@ -272,13 +292,41 @@ class AuthService {
     }
 
     /**
+     * Wait for a single message of specific type, optionally matching a predicate
+     */
+    waitFor(messageType, predicate = () => true, timeoutMs = 5000) {
+        return new Promise((resolve, reject) => {
+            let timer = null;
+            const handler = (payload) => {
+                try {
+                    const data = payload?.data ?? payload;
+                    if (predicate(data)) {
+                        if (timer) clearTimeout(timer);
+                        this.unsubscribe(messageType, handler);
+                        resolve(data);
+                    }
+                } catch (e) {
+                    // ignore predicate errors
+                }
+            };
+            this.subscribe(messageType, handler);
+            if (timeoutMs && timeoutMs > 0) {
+                timer = setTimeout(() => {
+                    this.unsubscribe(messageType, handler);
+                    reject(new Error(`Timeout waiting for '${messageType}'`));
+                }, timeoutMs);
+            }
+        });
+    }
+
+    /**
      * Unsubscribe from message type
      */
     unsubscribe(messageType, callback = null) {
         if (!this.callbacks.has(messageType)) {
             return;
         }
-        
+
         const callbackSet = this.callbacks.get(messageType);
         if (callback) {
             // Remove specific callback
@@ -303,12 +351,12 @@ class AuthService {
         if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
             // Queue message để gửi sau khi kết nối
             this.messageQueue.push(message);
-            
+
             // Thử kết nối lại nếu chưa kết nối
             if (!this.isConnected && !this.connectionPromise) {
                 this.connect().catch(console.error);
             }
-            
+
             return false;
         }
 
@@ -318,7 +366,7 @@ class AuthService {
             return true;
         } catch (error) {
             console.error('Error sending message:', error);
-            
+
             // Queue lại message nếu gửi thất bại
             this.messageQueue.push(message);
             return false;
@@ -331,8 +379,8 @@ class AuthService {
     login(username, password, avatar) {
         const message = {
             type: 'login',
-            data: { 
-                username: username.trim(), 
+            data: {
+                username: username.trim(),
                 password,
                 avatar: avatar || 'avt1.jpg'
             }
@@ -345,10 +393,10 @@ class AuthService {
      */
     register(username, password) {
         const message = {
-            type: 'register', 
-            data: { 
-                username: username.trim(), 
-                password, 
+            type: 'register',
+            data: {
+                username: username.trim(),
+                password,
             }
         };
         return this.send(message);
@@ -366,17 +414,132 @@ class AuthService {
     }
 
     /**
+     * Tạo phòng mới
+     */
+    createRoom(roomName, maxPlayers = 8, rounds = 3) {
+        const message = {
+            type: 'create_room',
+            data: {
+                room_name: roomName.trim(),
+                max_players: maxPlayers,
+                rounds: rounds
+            }
+        };
+        return this.send(message);
+    }
+
+    /**
+     * Tham gia phòng
+     */
+    joinRoom(roomId) {
+        const targetId = parseInt(roomId);
+        if (Number.isNaN(targetId) || targetId <= 0) {
+            return Promise.reject(new Error('Invalid room_id'));
+        }
+
+        const doJoin = () => {
+            const message = {
+                type: 'join_room',
+                data: { room_id: targetId }
+            };
+            this.send(message);
+            return this.waitFor(
+                'join_room_response',
+                (d) => (d?.status === 'success' && (d?.room_id === targetId || targetId > 0)) || d?.status === 'error',
+                8000
+            ).then((resp) => {
+                if (resp.status === 'success') {
+                    this.currentRoomId = targetId;
+                }
+                return resp;
+            });
+        };
+
+        if (this.currentRoomId && this.currentRoomId !== targetId) {
+            // Ensure we leave the previous room before joining a new one
+            return this.leaveRoom(this.currentRoomId).catch(() => ({})).then(doJoin);
+        }
+        return doJoin();
+    }
+
+    /**
+     * Rời phòng
+     */
+    leaveRoom(roomId) {
+        const parsed = parseInt(roomId);
+        const idToLeave = !Number.isNaN(parsed) && parsed > 0 ? parsed : this.currentRoomId;
+
+        if (!idToLeave) {
+            // Nothing to leave; resolve to keep flows moving
+            return Promise.resolve({ status: 'noop' });
+        }
+
+        const message = {
+            type: 'leave_room',
+            data: { room_id: idToLeave }
+        };
+        this.send(message);
+
+        return this.waitFor('leave_room_response', () => true, 8000).then((resp) => {
+            if (resp.status === 'success' && this.currentRoomId === idToLeave) {
+                this.currentRoomId = null;
+            }
+            return resp;
+        });
+    }
+
+    /**
+     * Lấy danh sách phòng
+     */
+    getRoomList() {
+        const message = {
+            type: 'room_list',
+            data: {}
+        };
+        return this.send(message);
+    }
+
+    /**
+     * Lấy cached room players update nếu có
+     */
+    getCachedRoomUpdate(roomId) {
+        const targetId = parseInt(roomId);
+        return this.roomUpdatesCache.get(targetId) || null;
+    }
+
+    /**
+     * Lấy danh sách players của room hiện tại từ cache
+     * Note: Server chỉ broadcast room_players_update, không có API get_room_players
+     */
+    getRoomPlayers(roomId) {
+        const targetId = parseInt(roomId);
+        if (Number.isNaN(targetId) || targetId <= 0) {
+            return Promise.reject(new Error('Invalid room_id'));
+        }
+
+        // Chỉ lấy từ cache, không request từ server
+        const cached = this.getCachedRoomUpdate(targetId);
+        if (cached) {
+            console.log('[Services] Using cached room update for room:', targetId);
+            return Promise.resolve(cached);
+        }
+
+        console.log('[Services] No cached room update for room:', targetId);
+        return Promise.reject(new Error('No cached room data available'));
+    }
+    
+    /**
      * Ngắt kết nối
      */
     disconnect() {
         this.isDisconnecting = true;
-        
+
         // Clear reconnect timer
         if (this.reconnectTimer) {
             clearTimeout(this.reconnectTimer);
             this.reconnectTimer = null;
         }
-        
+
         if (this.ws) {
             this.isConnected = false;
             try {
@@ -386,13 +549,13 @@ class AuthService {
                     // Defer close until open to avoid: "closed before the connection is established"
                     const wsRef = this.ws;
                     wsRef.addEventListener('open', () => {
-                        try { wsRef.close(1000, 'User disconnect'); } catch (_) {}
+                        try { wsRef.close(1000, 'User disconnect'); } catch (_) { }
                     }, { once: true });
                 }
-            } catch (_) {}
+            } catch (_) { }
             this.ws = null;
         }
-        
+
         this.callbacks.clear();
         this.messageQueue.length = 0;
         this.reconnectAttempts = 0;
@@ -406,7 +569,7 @@ class AuthService {
      */
     getConnectionState() {
         if (!this.ws) return 'disconnected';
-        
+
         switch (this.ws.readyState) {
             case WebSocket.CONNECTING: return 'connecting';
             case WebSocket.OPEN: return 'connected';
@@ -449,7 +612,7 @@ class AuthService {
         console.log(`Queued messages: ${info.queuedMessages}`);
         console.log(`Active subscribers: ${info.subscriberCount}`);
         console.log(`Has reconnect timer: ${info.hasReconnectTimer}`);
-        
+
         if (this.ws) {
             console.log(`WebSocket readyState: ${this.ws.readyState}`);
             console.log(`WebSocket URL: ${this.ws.url}`);
@@ -457,19 +620,19 @@ class AuthService {
             console.log('WebSocket instance: null');
         }
         console.log('=====================================');
-        
+
         return info;
     }
 }
 
 // Tạo singleton instance
-let authServiceInstance = null;
+let servicesInstance = null;
 
-export const getAuthService = (gatewayUrl) => {
-    if (!authServiceInstance) {
-        authServiceInstance = new AuthService(gatewayUrl);
+export const getServices = (gatewayUrl) => {
+    if (!servicesInstance) {
+        servicesInstance = new Services(gatewayUrl);
     }
-    return authServiceInstance;
+    return servicesInstance;
 };
 
-export default AuthService;
+export default Services;

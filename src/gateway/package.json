@@ -3,17 +3,26 @@
   "version": "1.0.0",
   "description": "WebSocket to TCP Gateway for Draw & Guess Game",
   "main": "index.js",
+
   "scripts": {
     "start": "node index.js",
-    "dev": "node --inspect index.js",
+    "dev": "nodemon index.js",
+    "debug": "nodemon --inspect index.js",
     "test": "node test-client.js auto",
     "test-interactive": "node test-client.js"
   },
+
   "author": "",
   "license": "ISC",
+
   "dependencies": {
     "ws": "^8.18.3"
   },
+
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  },
+
   "engines": {
     "node": ">=14.0.0"
   }
