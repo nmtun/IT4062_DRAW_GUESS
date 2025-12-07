@@ -639,6 +639,30 @@ int protocol_handle_join_room(server_t *server, int client_index, const message_
     // Cập nhật trạng thái client
     client->state = CLIENT_STATE_IN_ROOM;
 
+    // Kiểm tra nếu phòng đã đạt max players và đang WAITING, tự động start game
+    if (room->player_count >= room->max_players && room->state == ROOM_WAITING) {
+        printf("Phòng '%s' (ID: %d) đã đạt max players (%d/%d), tự động bắt đầu game\n",
+               room->room_name, room->room_id, room->player_count, room->max_players);
+        
+        if (room_start_game(room)) {
+            printf("Game đã tự động bắt đầu trong phòng '%s' (ID: %d)\n",
+                   room->room_name, room->room_id);
+            
+            // Cập nhật trạng thái client sang IN_GAME
+            client->state = CLIENT_STATE_IN_GAME;
+            
+            // Cập nhật trạng thái tất cả clients trong phòng
+            for (int i = 0; i < MAX_CLIENTS; i++) {
+                if (server->clients[i].active && 
+                    room_has_player(room, server->clients[i].user_id)) {
+                    server->clients[i].state = CLIENT_STATE_IN_GAME;
+                }
+            }
+        } else {
+            fprintf(stderr, "Lỗi: Không thể tự động bắt đầu game trong phòng %d\n", room->room_id);
+        }
+    }
+
     // Gửi response thành công
     protocol_send_join_room_response(client->fd, STATUS_SUCCESS, room_id,
                                      "Tham gia phòng thành công");
@@ -648,6 +672,9 @@ int protocol_handle_join_room(server_t *server, int client_index, const message_
     protocol_broadcast_room_players_update(server, room, 0, // 0 = JOIN
                                            client->user_id, client->username,
                                            -1); // -1 = không exclude ai
+
+    // Broadcast ROOM_UPDATE để thông báo trạng thái phòng (có thể đã chuyển sang PLAYING)
+    protocol_broadcast_room_update(server, room, -1);
 
     printf("Client %d (user_id=%d, username=%s) đã tham gia phòng '%s' (ID: %d)\n",
            client_index, client->user_id, client->username, room->room_name, room_id);
