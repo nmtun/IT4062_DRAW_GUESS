@@ -45,7 +45,7 @@ Module Room quản lý việc tạo phòng, tham gia phòng, rời phòng và c�
 
 | Message Type | Giá Trị | Mô Tả |
 |-------------|---------|-------|
-| `MSG_ROOM_LIST_RESPONSE` | 0x11 | Danh sách phòng |
+| `MSG_ROOM_LIST_RESPONSE` | 0x11 | Danh sách phòng (có thể là response hoặc broadcast) |
 | `MSG_ROOM_UPDATE` | 0x15 | Cập nhật thông tin phòng |
 | `MSG_ROOM_PLAYERS_UPDATE` | 0x17 | Cập nhật danh sách người chơi |
 
@@ -138,6 +138,10 @@ Module Room quản lý việc tạo phòng, tham gia phòng, rời phòng và c�
   ]
 }
 ```
+
+**Lưu Ý:**
+- `MSG_ROOM_LIST_RESPONSE` cũng có thể được server tự động gửi như broadcast message (không phải response của request)
+- Xem thêm phần "7. Broadcast Danh Sách Phòng" bên dưới
 
 ### 5. ROOM_UPDATE (Broadcast)
 
@@ -375,6 +379,85 @@ Server tự động gửi `MSG_ROOM_PLAYERS_UPDATE` đến tất cả người c
 - Message này chứa danh sách đầy đủ người chơi, không chỉ người thay đổi
 - Frontend nên cập nhật toàn bộ danh sách người chơi khi nhận được message này
 
+### 7. Broadcast Danh Sách Phòng (Room List Broadcast)
+
+**Message Type:** `MSG_ROOM_LIST_RESPONSE` (0x11)
+
+Server tự động gửi `MSG_ROOM_LIST_RESPONSE` đến **tất cả clients đã đăng nhập** (`CLIENT_STATE_LOGGED_IN` trở lên) khi:
+- Có phòng mới được tạo
+- Có phòng bị xóa (khi phòng trống)
+
+**Khi Nào Nhận Được:**
+- Sau khi một client tạo phòng thành công → Tất cả clients đã đăng nhập nhận được danh sách phòng cập nhật
+- Sau khi một phòng bị xóa (không còn người chơi) → Tất cả clients đã đăng nhập nhận được danh sách phòng cập nhật
+
+**Cấu Trúc Dữ Liệu:**
+
+Cấu trúc giống hệt `MSG_ROOM_LIST_RESPONSE` khi là response của request:
+
+```javascript
+{
+  room_count: uint16,     // Số lượng phòng hiện tại
+  rooms: [                // Mảng thông tin phòng
+    {
+      room_id: int32,
+      room_name: string,   // max 32 ký tự
+      player_count: uint8,
+      max_players: uint8,
+      state: uint8,        // 0=WAITING, 1=PLAYING, 2=FINISHED
+      owner_id: int32
+    },
+    ...
+  ]
+}
+```
+
+**Phân Biệt Broadcast vs Response:**
+
+Frontend cần phân biệt giữa:
+- **Response**: Client đã gửi `MSG_ROOM_LIST_REQUEST` và đang đợi response
+- **Broadcast**: Server tự động gửi (không có request trước đó)
+
+**Cách Xử Lý:**
+
+```javascript
+// Trong message handler
+function handleMessage(type, buffer) {
+  if (type === MSG_ROOM_LIST_RESPONSE) {
+    // Kiểm tra xem có đang đợi response này không
+    if (isWaitingForRoomList) {
+      // Đây là response của request
+      handleRoomListResponse(buffer);
+      isWaitingForRoomList = false;
+    } else {
+      // Đây là broadcast message
+      handleRoomListBroadcast(buffer);
+    }
+  }
+}
+
+function handleRoomListBroadcast(buffer) {
+  // Parse giống như response
+  const rooms = parseRoomList(buffer);
+  
+  // Cập nhật UI với danh sách phòng mới
+  updateRoomList(rooms);
+  
+  // Có thể hiển thị thông báo
+  console.log("Danh sách phòng đã được cập nhật tự động");
+}
+```
+
+**Lợi Ích:**
+- Clients không cần phải request lại danh sách phòng
+- Danh sách phòng luôn được đồng bộ real-time
+- Giảm tải cho server (không cần nhiều request)
+
+**Lưu Ý:**
+- Broadcast chỉ gửi cho clients đã đăng nhập (`CLIENT_STATE_LOGGED_IN` trở lên)
+- Clients chưa đăng nhập sẽ không nhận được broadcast
+- Frontend nên luôn lắng nghe và xử lý `MSG_ROOM_LIST_RESPONSE` như broadcast message (trừ khi đang đợi response)
+
 ---
 
 ## Message Format
@@ -493,10 +576,42 @@ function joinRoom(roomId) {
 }
 ```
 
-### 4. Nhận ROOM_LIST_RESPONSE
+### 4. Nhận ROOM_LIST_RESPONSE (Response hoặc Broadcast)
 
 ```javascript
+// Biến để theo dõi trạng thái đang đợi response
+let isWaitingForRoomList = false;
+
+// Xử lý message tổng quát
+function handleMessage(type, buffer) {
+  if (type === MSG_ROOM_LIST_RESPONSE) {
+    if (isWaitingForRoomList) {
+      // Đây là response của request
+      handleRoomListResponse(buffer);
+      isWaitingForRoomList = false;
+    } else {
+      // Đây là broadcast message
+      handleRoomListBroadcast(buffer);
+    }
+  }
+}
+
+// Xử lý response (khi client request)
 function handleRoomListResponse(buffer) {
+  const rooms = parseRoomList(buffer);
+  updateRoomList(rooms);
+  console.log("Đã nhận danh sách phòng từ request");
+}
+
+// Xử lý broadcast (khi server tự động gửi)
+function handleRoomListBroadcast(buffer) {
+  const rooms = parseRoomList(buffer);
+  updateRoomList(rooms);
+  console.log("Danh sách phòng đã được cập nhật tự động");
+}
+
+// Parse danh sách phòng (dùng chung cho cả response và broadcast)
+function parseRoomList(buffer) {
   let offset = 0;
   
   // Đọc room_count (uint16)
@@ -519,8 +634,13 @@ function handleRoomListResponse(buffer) {
     offset += 43; // 4 + 32 + 1 + 1 + 1 + 4 = 43 bytes
   }
   
-  // Cập nhật UI với danh sách phòng
-  updateRoomList(rooms);
+  return rooms;
+}
+
+// Gửi request danh sách phòng
+function requestRoomList() {
+  isWaitingForRoomList = true;
+  sendMessage(MSG_ROOM_LIST_REQUEST, null, 0);
 }
 ```
 
@@ -618,9 +738,11 @@ function createUint16(value) {
    - Cập nhật state khi nhận response thành công
 
 5. **Broadcast Messages**:
-   - `MSG_ROOM_UPDATE` và `MSG_ROOM_PLAYERS_UPDATE` là broadcast, không phải response
+   - `MSG_ROOM_UPDATE`, `MSG_ROOM_PLAYERS_UPDATE`, và `MSG_ROOM_LIST_RESPONSE` có thể là broadcast
+   - `MSG_ROOM_LIST_RESPONSE` có thể vừa là response (khi request) vừa là broadcast (khi server tự động gửi)
    - Luôn lắng nghe và xử lý các broadcast messages
    - Cập nhật UI real-time khi nhận broadcast
+   - Phân biệt giữa response và broadcast bằng cách theo dõi trạng thái đang đợi response
 
 6. **Error Handling**:
    - Hiển thị thông báo lỗi từ server cho người dùng
@@ -635,6 +757,7 @@ function createUint16(value) {
 ```
 Client → MSG_CREATE_ROOM → Server
 Server → MSG_CREATE_ROOM (response) → Client
+Server → MSG_ROOM_LIST_RESPONSE (broadcast) → Tất cả clients đã đăng nhập
 ```
 
 ### Flow Tham Gia Phòng
@@ -649,6 +772,7 @@ Server → MSG_ROOM_PLAYERS_UPDATE (broadcast) → Tất cả clients trong phò
 Client → MSG_LEAVE_ROOM → Server
 Server → MSG_LEAVE_ROOM (response) → Client
 Server → MSG_ROOM_PLAYERS_UPDATE (broadcast) → Các clients còn lại trong phòng
+(Nếu phòng bị xóa) Server → MSG_ROOM_LIST_RESPONSE (broadcast) → Tất cả clients đã đăng nhập
 ```
 
 ### Flow Lấy Danh Sách Phòng
@@ -666,4 +790,321 @@ Tài liệu này cung cấp đầy đủ thông tin để Frontend có thể tri
 - `src/server/room.c` - Logic quản lý phòng
 - `src/include/room.h` - Định nghĩa cấu trúc room
 - `src/common/protocol.h` - Định nghĩa message types và structures
+
+---
+
+## ⚠️ LƯU Ý QUAN TRỌNG CHO FRONTEND: Phân Biệt Các Trường Hợp MSG_ROOM_LIST_RESPONSE
+
+`MSG_ROOM_LIST_RESPONSE` (0x11) có thể được server gửi trong **3 trường hợp khác nhau**. Frontend **BẮT BUỘC** phải phân biệt để xử lý đúng:
+
+### 1. Response của Request (Client đã gửi MSG_ROOM_LIST_REQUEST)
+
+**Khi nào:** Client gửi `MSG_ROOM_LIST_REQUEST` và đang đợi response
+
+**Cách nhận biết:**
+- Client đã set flag `isWaitingForRoomList = true` trước khi gửi request
+- Message nhận được ngay sau khi gửi request (trong cùng flow)
+
+**Cách xử lý:**
+```javascript
+// State management
+let isWaitingForRoomList = false;
+let pendingRoomListRequest = null;
+
+// Gửi request
+function requestRoomList() {
+  isWaitingForRoomList = true;
+  pendingRoomListRequest = {
+    timestamp: Date.now(),
+    timeout: setTimeout(() => {
+      isWaitingForRoomList = false;
+      pendingRoomListRequest = null;
+      console.error("Timeout: Không nhận được danh sách phòng");
+    }, 5000) // 5 giây timeout
+  };
+  sendMessage(MSG_ROOM_LIST_REQUEST, null, 0);
+}
+
+// Xử lý message
+function handleMessage(type, buffer) {
+  if (type === MSG_ROOM_LIST_RESPONSE) {
+    if (isWaitingForRoomList) {
+      // Đây là response của request
+      clearTimeout(pendingRoomListRequest?.timeout);
+      isWaitingForRoomList = false;
+      pendingRoomListRequest = null;
+      
+      const rooms = parseRoomList(buffer);
+      updateRoomList(rooms);
+      console.log("✓ Đã nhận danh sách phòng từ request");
+    } else {
+      // Đây là broadcast hoặc tự động gửi (xem bên dưới)
+      handleRoomListAutoUpdate(buffer);
+    }
+  }
+}
+```
+
+### 2. Broadcast Tự Động (Khi có phòng mới/xóa phòng)
+
+**Khi nào:** 
+- Sau khi một client tạo phòng thành công
+- Sau khi một phòng bị xóa (không còn người chơi)
+
+**Cách nhận biết:**
+- Client **KHÔNG** đang đợi response (`isWaitingForRoomList = false`)
+- Message đến bất ngờ, không có request trước đó
+- Có thể nhận được bất cứ lúc nào khi đã đăng nhập
+
+**Cách xử lý:**
+```javascript
+function handleRoomListAutoUpdate(buffer) {
+  const rooms = parseRoomList(buffer);
+  
+  // Cập nhật danh sách phòng
+  updateRoomList(rooms);
+  
+  // Có thể hiển thị thông báo nhẹ (optional)
+  showNotification("Danh sách phòng đã được cập nhật", "info");
+  
+  console.log("📢 Broadcast: Danh sách phòng đã được cập nhật tự động");
+}
+```
+
+### 3. Tự Động Gửi Sau Đăng Nhập (Nếu server implement)
+
+**Khi nào:** Ngay sau khi client nhận `MSG_LOGIN_RESPONSE` với `status = STATUS_SUCCESS`
+
+**Cách nhận biết:**
+- Message đến ngay sau `MSG_LOGIN_RESPONSE` thành công
+- Client **KHÔNG** đang đợi response (`isWaitingForRoomList = false`)
+- Chỉ xảy ra một lần sau khi đăng nhập
+
+**Cách xử lý:**
+```javascript
+// State để track trạng thái đăng nhập
+let justLoggedIn = false;
+
+// Xử lý login response
+function handleLoginResponse(buffer) {
+  const response = parseLoginResponse(buffer);
+  
+  if (response.status === STATUS_SUCCESS) {
+    // Đánh dấu vừa đăng nhập
+    justLoggedIn = true;
+    
+    // Set timeout để reset flag (sau 1 giây)
+    setTimeout(() => {
+      justLoggedIn = false;
+    }, 1000);
+    
+    // Cập nhật user state
+    setUser({
+      id: response.user_id,
+      username: response.username
+    });
+  }
+}
+
+// Xử lý room list response
+function handleMessage(type, buffer) {
+  if (type === MSG_ROOM_LIST_RESPONSE) {
+    if (isWaitingForRoomList) {
+      // Trường hợp 1: Response của request
+      handleRoomListResponse(buffer);
+    } else if (justLoggedIn) {
+      // Trường hợp 3: Tự động gửi sau đăng nhập
+      const rooms = parseRoomList(buffer);
+      updateRoomList(rooms);
+      justLoggedIn = false; // Reset flag
+      console.log("✓ Đã nhận danh sách phòng sau đăng nhập");
+    } else {
+      // Trường hợp 2: Broadcast tự động
+      handleRoomListAutoUpdate(buffer);
+    }
+  }
+}
+```
+
+### 📋 Tóm Tắt Flow Xử Lý
+
+```javascript
+class RoomListManager {
+  constructor() {
+    this.isWaitingForRoomList = false;
+    this.justLoggedIn = false;
+    this.pendingRequest = null;
+  }
+
+  // Gửi request danh sách phòng
+  requestRoomList() {
+    this.isWaitingForRoomList = true;
+    this.pendingRequest = {
+      timestamp: Date.now(),
+      timeout: setTimeout(() => {
+        this.isWaitingForRoomList = false;
+        this.pendingRequest = null;
+        console.error("Timeout: Không nhận được danh sách phòng");
+      }, 5000)
+    };
+    sendMessage(MSG_ROOM_LIST_REQUEST, null, 0);
+  }
+
+  // Xử lý message nhận được
+  handleRoomListResponse(type, buffer) {
+    if (type !== MSG_ROOM_LIST_RESPONSE) return;
+
+    const rooms = parseRoomList(buffer);
+
+    if (this.isWaitingForRoomList) {
+      // Trường hợp 1: Response của request
+      this.clearPendingRequest();
+      this.updateRoomList(rooms, "response");
+    } else if (this.justLoggedIn) {
+      // Trường hợp 3: Tự động gửi sau đăng nhập
+      this.justLoggedIn = false;
+      this.updateRoomList(rooms, "login");
+    } else {
+      // Trường hợp 2: Broadcast tự động
+      this.updateRoomList(rooms, "broadcast");
+    }
+  }
+
+  // Cập nhật danh sách phòng
+  updateRoomList(rooms, source) {
+    // Cập nhật state/UI
+    setRoomList(rooms);
+    
+    // Log để debug
+    const sourceMap = {
+      "response": "✓ Response của request",
+      "login": "✓ Tự động sau đăng nhập",
+      "broadcast": "📢 Broadcast tự động"
+    };
+    console.log(`${sourceMap[source]}: ${rooms.length} phòng`);
+  }
+
+  // Đánh dấu vừa đăng nhập
+  markJustLoggedIn() {
+    this.justLoggedIn = true;
+    setTimeout(() => {
+      this.justLoggedIn = false;
+    }, 1000);
+  }
+
+  // Clear pending request
+  clearPendingRequest() {
+    if (this.pendingRequest) {
+      clearTimeout(this.pendingRequest.timeout);
+      this.pendingRequest = null;
+    }
+    this.isWaitingForRoomList = false;
+  }
+}
+```
+
+### ✅ Checklist Implementation
+
+- [ ] Có state `isWaitingForRoomList` để track khi đang đợi response
+- [ ] Có state `justLoggedIn` để track khi vừa đăng nhập
+- [ ] Xử lý timeout cho request (5-10 giây)
+- [ ] Parse message giống nhau cho cả 3 trường hợp
+- [ ] Cập nhật UI cho cả 3 trường hợp
+- [ ] Log/debug để phân biệt rõ ràng từng trường hợp
+- [ ] Xử lý edge cases (message đến không đúng thứ tự, timeout, etc.)
+
+### 🚨 Lỗi Thường Gặp
+
+1. **Không phân biệt response vs broadcast**
+   - ❌ Sai: Luôn xử lý như response → Mất broadcast messages
+   - ✅ Đúng: Kiểm tra `isWaitingForRoomList` trước
+
+2. **Không reset flag sau khi nhận response**
+   - ❌ Sai: `isWaitingForRoomList` luôn `true` → Broadcast bị xử lý sai
+   - ✅ Đúng: Reset flag ngay sau khi nhận response
+
+3. **Không xử lý timeout**
+   - ❌ Sai: Đợi mãi không có response → UI bị stuck
+   - ✅ Đúng: Set timeout và clear flag khi timeout
+
+4. **Không xử lý message đến không đúng thứ tự**
+   - ❌ Sai: Broadcast đến trước response → Xử lý sai
+   - ✅ Đúng: Dùng timestamp hoặc sequence number để validate
+
+### 📝 Ví Dụ Hoàn Chỉnh
+
+```javascript
+// RoomListHandler.js
+export class RoomListHandler {
+  constructor(socket, onRoomListUpdate) {
+    this.socket = socket;
+    this.onRoomListUpdate = onRoomListUpdate;
+    this.isWaitingForResponse = false;
+    this.justLoggedIn = false;
+    this.requestId = 0;
+    this.pendingRequests = new Map();
+    
+    // Lắng nghe messages
+    this.socket.on('message', this.handleMessage.bind(this));
+  }
+
+  // Gửi request danh sách phòng
+  requestRoomList() {
+    const requestId = ++this.requestId;
+    
+    this.isWaitingForResponse = true;
+    this.pendingRequests.set(requestId, {
+      timestamp: Date.now(),
+      timeout: setTimeout(() => {
+        this.isWaitingForResponse = false;
+        this.pendingRequests.delete(requestId);
+        console.error("Timeout: Không nhận được danh sách phòng");
+      }, 5000)
+    });
+    
+    this.socket.send(MSG_ROOM_LIST_REQUEST, null, 0);
+    return requestId;
+  }
+
+  // Xử lý message nhận được
+  handleMessage(type, buffer) {
+    if (type === MSG_ROOM_LIST_RESPONSE) {
+      const rooms = this.parseRoomList(buffer);
+      
+      if (this.isWaitingForResponse) {
+        // Trường hợp 1: Response của request
+        this.clearPendingRequests();
+        this.onRoomListUpdate(rooms, 'response');
+      } else if (this.justLoggedIn) {
+        // Trường hợp 3: Tự động sau đăng nhập
+        this.justLoggedIn = false;
+        this.onRoomListUpdate(rooms, 'login');
+      } else {
+        // Trường hợp 2: Broadcast tự động
+        this.onRoomListUpdate(rooms, 'broadcast');
+      }
+    }
+  }
+
+  // Đánh dấu vừa đăng nhập
+  markJustLoggedIn() {
+    this.justLoggedIn = true;
+    setTimeout(() => {
+      this.justLoggedIn = false;
+    }, 1000);
+  }
+
+  // Parse danh sách phòng
+  parseRoomList(buffer) {
+    // Implementation...
+  }
+
+  // Clear pending requests
+  clearPendingRequests() {
+    this.pendingRequests.forEach(req => clearTimeout(req.timeout));
+    this.pendingRequests.clear();
+    this.isWaitingForResponse = false;
+  }
+}
+```
 

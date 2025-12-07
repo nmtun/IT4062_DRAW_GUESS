@@ -88,6 +88,45 @@ int send_message(int fd, uint8_t type, const uint8_t* payload, uint16_t payload_
  * @return 1 nếu là broadcast message (tiếp tục đợi), 0 nếu là response mong đợi, -1 nếu lỗi
  */
 static int process_message(uint8_t* buffer, uint16_t length, uint8_t type, uint8_t* expected_type) {
+    // Xử lý ROOM_LIST_RESPONSE như broadcast message (khi server tự động gửi)
+    if (type == MSG_ROOM_LIST_RESPONSE) {
+        // Nếu đang đợi response này, xử lý như response bình thường
+        if (expected_type && *expected_type == MSG_ROOM_LIST_RESPONSE) {
+            // Xử lý như response bình thường (sẽ xử lý ở switch case bên dưới)
+        } else {
+            // Đây là broadcast message, xử lý ngay
+            if (length >= sizeof(room_list_response_t)) {
+                room_list_response_t* header = (room_list_response_t*)(buffer + 3);
+                uint16_t room_count = ntohs(header->room_count);
+                
+                printf("\n[ROOM_LIST_BROADCAST] Danh sách phòng đã được cập nhật (%d phòng)\n", room_count);
+                
+                if (room_count > 0) {
+                    room_info_protocol_t* rooms = (room_info_protocol_t*)(buffer + 3 + sizeof(room_list_response_t));
+                    
+                    printf("%-5s %-20s %-8s %-8s %-10s %-8s\n", 
+                           "ID", "Tên phòng", "Số người", "Tối đa", "Trạng thái", "Owner");
+                    printf("------------------------------------------------------------\n");
+                    
+                    for (int i = 0; i < room_count; i++) {
+                        int32_t room_id = (int32_t)ntohl((uint32_t)rooms[i].room_id);
+                        uint8_t state = rooms[i].state;
+                        const char* state_str = (state == 0) ? "WAITING" : 
+                                               (state == 1) ? "PLAYING" : "FINISHED";
+                        int32_t owner_id = (int32_t)ntohl((uint32_t)rooms[i].owner_id);
+                        
+                        printf("%-5d %-20s %-8d %-8d %-10s %-8d\n",
+                               room_id, rooms[i].room_name, 
+                               rooms[i].player_count, rooms[i].max_players,
+                               state_str, owner_id);
+                    }
+                }
+                printf("==========================================\n\n");
+                return 1; // Đã xử lý, tiếp tục đợi
+            }
+        }
+    }
+    
     // Xử lý ROOM_UPDATE ngay lập tức (broadcast message)
     if (type == MSG_ROOM_UPDATE) {
         if (length >= sizeof(room_info_protocol_t)) {
@@ -320,7 +359,7 @@ int receive_response(int fd, uint8_t* expected_type) {
 
 /**
  * Thread function: Liên tục nhận messages từ server (background)
- * Chỉ xử lý broadcast messages (ROOM_UPDATE, ROOM_PLAYERS_UPDATE)
+ * Chỉ xử lý broadcast messages (ROOM_UPDATE, ROOM_PLAYERS_UPDATE, ROOM_LIST_RESPONSE)
  */
 void* message_receiver_thread(void* arg) {
     int fd = *(int*)arg;
@@ -383,8 +422,15 @@ void* message_receiver_thread(void* arg) {
         
         uint8_t type = peek_buffer[0];
         
+        // Kiểm tra nếu đang đợi response này, không xử lý như broadcast
+        if (waiting_for_response && expected_response_type == type) {
+            // Main thread đang đợi response này, không đọc (để main thread đọc)
+            usleep(50000);
+            continue;
+        }
+        
         // Chỉ xử lý broadcast messages
-        if (type == MSG_ROOM_UPDATE || type == MSG_ROOM_PLAYERS_UPDATE) {
+        if (type == MSG_ROOM_UPDATE || type == MSG_ROOM_PLAYERS_UPDATE || type == MSG_ROOM_LIST_RESPONSE) {
             // Đọc message thực sự (chỉ khi là broadcast message)
             pthread_mutex_lock(&socket_mutex);
             ssize_t bytes_read = recv(fd, buffer, sizeof(buffer), 0);

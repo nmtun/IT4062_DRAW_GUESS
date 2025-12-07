@@ -323,9 +323,15 @@
   color: white;
 }
 
-.btn-new-room:hover {
+.btn-new-room:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+}
+
+.btn-new-room:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .btn-play {
@@ -430,11 +436,59 @@
   }
 }
 
-.no-rooms-message {
+.no-rooms-message,
+.loading-message,
+.error-message {
   grid-column: 1 / -1;
   text-align: center;
   padding: 40px 20px;
   color: #666;
   font-size: 1.2rem;
+}
+
+.loading-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.loading-message::before {
+  content: '';
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(102, 102, 102, 0.3);
+  border-top: 4px solid #666;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-message {
+  color: #d73027;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.retry-btn {
+  padding: 12px 24px;
+  background-color: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.retry-btn:hover {
+  background-color: #4338ca;
 }
 

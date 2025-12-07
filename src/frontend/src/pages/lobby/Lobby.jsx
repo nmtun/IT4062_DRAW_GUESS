@@ -1,52 +1,192 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import RoomCard from '../../components/RoomCard';
+import CreateRoomDialog from '../../components/CreateRoomDialog';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { clearUserData } from '../../utils/userStorage';
-import { getAuthService } from '../../services/AuthService';
+import { getServices } from '../../services/Services';
 import './Lobby.css';
-
-// Mock rooms data - sẽ được thay thế bằng data từ server
-const MOCK_ROOMS = [
-  { id: '1pZ', name: 'Tổng quát #1pZ', currentPlayers: 3, maxPlayers: 15, score: 64, maxScore: 120, isOfficial: true },
-  { id: '3SM', name: 'Tổng quát #3SM', currentPlayers: 3, maxPlayers: 15, score: 64, maxScore: 120, isOfficial: true },
-  { id: 'iVs', name: 'Khác/ Tổng quát #iVs', currentPlayers: 0, maxPlayers: 5, score: 0, maxScore: 180 },
-  { id: '6YN', name: 'Khác/ Tổng quát #6YN', currentPlayers: 0, maxPlayers: 5, score: 0, maxScore: 180 },
-  { id: '2Rr', name: 'Minecraft #2Rr', currentPlayers: 2, maxPlayers: 8, score: 45, maxScore: 100 },
-  { id: '2aw', name: 'Minecraft #2aw', currentPlayers: 1, maxPlayers: 8, score: 30, maxScore: 100 },
-  { id: '2Df', name: 'Youtubers #2Df', currentPlayers: 4, maxPlayers: 10, score: 80, maxScore: 150 },
-  { id: '2Zv', name: 'Thức ăn #2Zv', currentPlayers: 2, maxPlayers: 8, score: 25, maxScore: 120 },
-  { id: '4Gh', name: 'Thức ăn #4Gh', currentPlayers: 5, maxPlayers: 8, score: 60, maxScore: 120 },
-  { id: '5Jk', name: 'Động vật #5Jk', currentPlayers: 3, maxPlayers: 10, score: 50, maxScore: 150 },
-  { id: '7Lm', name: 'Động vật #7Lm', currentPlayers: 0, maxPlayers: 10, score: 0, maxScore: 150 },
-  { id: '8Np', name: 'Phương tiện giao thông #8Np', currentPlayers: 1, maxPlayers: 5, score: 15, maxScore: 80 },
-];
 
 export default function Lobby({ onJoinRoom, onCreateRoom, rooms = [] }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedLanguage, setSelectedLanguage] = useState('VI');
-  const [selectedTopic, setSelectedTopic] = useState('TAT CA');
+  const [roomsList, setRoomsList] = useState([]);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingRooms, setIsLoadingRooms] = useState(true);
+  const [error, setError] = useState(null);
+  const timeoutRef = useRef(null); 
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Sử dụng rooms từ props, nếu không có thì dùng mock data
-  const displayRooms = rooms.length > 0 ? rooms : MOCK_ROOMS;
+  // Lọc phòng theo từ khóa tìm kiếm
+  const filteredRooms = roomsList.filter(room =>
+    room.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Hiển thị rooms từ server hoặc từ props
+  const displayRooms = rooms.length > 0 ? rooms : filteredRooms;
+
+  // Kết nối và lắng nghe events từ server
+  useEffect(() => {
+    const services = getServices();
+
+    // Đăng ký lắng nghe events TRƯỚC (an toàn)
+    const handleCreateRoomResponse = (data) => {
+      setIsLoading(false);
+      if (data.status === 'success') {
+        if (data.room_id) {
+          navigate(`/game/${data.room_id}`);
+        }
+      } else {
+        alert(data.message || 'Không thể tạo phòng');
+      }
+    };
+
+    const handleJoinRoomResponse = (data) => {
+      if (data.status === 'success') {
+        if (data.room_id) {
+          navigate(`/game/${data.room_id}`);
+        }
+      } else {
+        alert(data.message || 'Không thể tham gia phòng');
+      }
+    };
+
+    const handleRoomListResponse = (data) => {
+      // clear timeout khi có phản hồi
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      setIsLoadingRooms(false);
+      setError(null);
+      if (data.rooms) {
+        const formattedRooms = data.rooms.map(room => {
+          const getStateText = (state) => {
+            switch (state) {
+              case 0: return 'Chờ';
+              case 1: return 'Đang chơi';
+              case 2: return 'Kết thúc';
+              default: return 'Không xác định';
+            }
+          };
+          return {
+            id: room.room_id.toString(),
+            name: room.room_name,
+            currentPlayers: room.player_count,
+            maxPlayers: room.max_players,
+            state: room.state,
+            stateText: getStateText(room.state),
+            ownerId: room.owner_id,
+            canJoin: room.state === 0 && room.player_count < room.max_players
+          };
+        });
+        setRoomsList(formattedRooms);
+      } else {
+        setRoomsList([]);
+      }
+    };
+
+    const handleError = (data) => {
+      // clear timeout khi có lỗi
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      setIsLoadingRooms(false);
+      setIsLoading(false);
+      setError(data.message || 'Đã xảy ra lỗi');
+    };
+
+    services.subscribe('create_room_response', handleCreateRoomResponse);
+    services.subscribe('join_room_response', handleJoinRoomResponse);
+    services.subscribe('room_list_response', handleRoomListResponse);
+    services.subscribe('error', handleError);
+
+    // Kết nối và CHỈ load danh sách sau khi connect xong
+    (async () => {
+      try {
+        await services.connect();
+        loadRoomList(); // kết nối xong mới gửi request
+      } catch (error) {
+        console.error('Connection error:', error);
+        setError('Không thể kết nối đến server. Vui lòng thử lại.');
+        setIsLoadingRooms(false);
+      }
+    })();
+
+    return () => {
+      services.unsubscribe('create_room_response', handleCreateRoomResponse);
+      services.unsubscribe('join_room_response', handleJoinRoomResponse);
+      services.unsubscribe('room_list_response', handleRoomListResponse);
+      services.unsubscribe('error', handleError);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [navigate]);
+
+  const loadRoomList = () => {
+    const services = getServices();
+    // reset timeout cũ
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    setIsLoadingRooms(true);
+    setError(null);
+
+    // Timeout fallback: chỉ clear trong các handler khi có phản hồi
+    timeoutRef.current = setTimeout(() => {
+      setIsLoadingRooms(false);
+      setError('Timeout: Server không phản hồi');
+      timeoutRef.current = null;
+    }, 10000);
+
+    services.getRoomList();
+  };
 
   const handleJoinRoom = (roomId) => {
+    const services = getServices();
     if (onJoinRoom) {
       onJoinRoom(roomId);
+      navigate(`/game/${roomId}`);
+    } else {
+      services.joinRoom(roomId);
     }
   };
 
-  const handleCreateRoom = () => {
+  const handleCreateRoom = async (roomName, maxPlayers, rounds) => {
+    const services = getServices();
+    setIsLoading(true);
+
+    try {
+      // Gửi yêu cầu tạo phòng
+      const sent = services.createRoom(roomName, maxPlayers, rounds);
+      if (!sent) {
+        setIsLoading(false);
+        alert('Không thể kết nối đến server');
+      }
+    } catch (error) {
+      setIsLoading(false);
+      console.error('Error creating room:', error);
+      alert('Có lỗi xảy ra khi tạo phòng');
+    }
+  };
+
+  const openCreateDialog = () => {
     if (onCreateRoom) {
       onCreateRoom();
+    } else {
+      setIsCreateDialogOpen(true);
     }
   };
 
   const handleLogout = () => {
-    getAuthService().logout();
-    getAuthService().disconnect();
+    getServices().logout();
+    getServices().disconnect();
     clearUserData();
     navigate('/');
   }
@@ -68,7 +208,7 @@ export default function Lobby({ onJoinRoom, onCreateRoom, rooms = [] }) {
               />
             </div>
             <span className="username">
-              {(user?.username ? user.username.replace(/^\u0001/, '') : 'Guest')}
+              {(user?.username ? user.username.replace(/[\x00-\x1F]/g, '') : 'Guest')}
             </span>
           </div>
         </div>
@@ -106,7 +246,18 @@ export default function Lobby({ onJoinRoom, onCreateRoom, rooms = [] }) {
 
         {/* Room List */}
         <div className="rooms-grid">
-          {displayRooms.length > 0 ? (
+          {error ? (
+            <div className="error-message">
+              <p>{error}</p>
+              <button onClick={loadRoomList} className="retry-btn">
+                Thử lại
+              </button>
+            </div>
+          ) : isLoadingRooms ? (
+            <div className="loading-message">
+              <p>Đang tải danh sách phòng...</p>
+            </div>
+          ) : displayRooms.length > 0 ? (
             displayRooms.map((room) => (
               <RoomCard
                 key={room.id}
@@ -123,13 +274,20 @@ export default function Lobby({ onJoinRoom, onCreateRoom, rooms = [] }) {
       </main>
       {/* Action Buttons */}
       <div className="lobby-actions">
-        <button className="btn-new-room" onClick={handleCreateRoom}>
-          PHÒNG MỚI
+        <button className="btn-new-room" onClick={openCreateDialog} disabled={isLoading}>
+          {isLoading ? 'ĐANG TẠO...' : 'PHÒNG MỚI'}
         </button>
-        <button className="btn-play">
-          CHƠI
+        <button className="btn-play" onClick={loadRoomList}>
+          LÀM MỚI
         </button>
       </div>
+
+      {/* Dialog tạo phòng */}
+      <CreateRoomDialog
+        isOpen={isCreateDialogOpen}
+        onClose={() => setIsCreateDialogOpen(false)}
+        onCreateRoom={handleCreateRoom}
+      />
     </div>
   );
 }

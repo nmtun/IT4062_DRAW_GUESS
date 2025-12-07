@@ -127,5 +127,13 @@ int protocol_broadcast_room_players_update(server_t* server, room_t* room,
                                            const char* changed_username, 
                                            int exclude_client_index);
 
+/**
+ * Broadcast ROOM_LIST_RESPONSE đến tất cả clients đã đăng nhập
+ * Gọi khi có phòng mới được tạo hoặc phòng bị xóa
+ * @param server Con trỏ đến server_t
+ * @return Số lượng clients đã nhận được message
+ */
+int protocol_broadcast_room_list(server_t* server);
+
 #endif // PROTOCOL_HANDLER_H
 

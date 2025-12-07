@@ -67,6 +67,18 @@
   justify-content: center;
   font-size: 1.8rem;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.player-avatar .avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.player-avatar .avatar-emoji {
+  color: white;
 }
 
 .drawing-badge {
@@ -94,6 +106,20 @@
   color: #333;
   margin-bottom: 4px;
   font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.owner-badge {
+  font-size: 0.8rem;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
 }
 
 .player-score {
