@@ -18,7 +18,6 @@ class Gateway {
         this.httpServer = null;
         this.clients = new Map(); // websocket -> {tcpClient, messageBuffer} mapping
         this.performanceMonitor = new PerformanceMonitor();
-        this.tcpConnectionManager = new TcpConnectionManager(tcpHost, tcpPort);
     }
 
     start() {
@@ -46,59 +45,83 @@ class Gateway {
     handleWebSocketConnection(ws) {
         let tcpClient = null;
         let isConnected = false;
+        let connectingPromise = null; // Promise để đợi quá trình kết nối hoàn tất
         const messageBuffer = new MessageBuffer();
+        
+        // Tạo TcpConnectionManager riêng cho mỗi WebSocket client
+        const tcpConnectionManager = new TcpConnectionManager(this.tcpHost, this.tcpPort);
 
         // Kết nối đến TCP server với retry logic
         const connectToTcpServer = async () => {
-            try {
-                tcpClient = await this.tcpConnectionManager.connect();
-                isConnected = true;
-
-                tcpClient.on('data', (data) => {
-                    try {
-                        // Sử dụng message buffer để xử lý data có thể bị phân mảnh
-                        const messages = messageBuffer.addData(data);
-
-                        messages.forEach(messageData => {
-                            const message = this.parseTcpMessage(messageData);
-                            Logger.info(`[Gateway] Sending message to WebSocket client: ${message.type}`, message);
-                            if (ws.readyState === WebSocket.OPEN) {
-                                ws.send(JSON.stringify(message));
-                                this.performanceMonitor.incrementMessagesSent();
-                            }
-                        });
-                    } catch (error) {
-                        Logger.error('Error parsing TCP data:', error);
-                        this.performanceMonitor.incrementErrors();
-                    }
-                });
-
-                tcpClient.on('close', () => {
-                    Logger.warn('TCP connection closed');
-                    isConnected = false;
-                    messageBuffer.clear();
-                    if (ws.readyState === WebSocket.OPEN) {
-                        ws.close(1011, 'TCP server disconnected');
-                    }
-                });
-
-                tcpClient.on('error', (error) => {
-                    Logger.error('TCP connection error:', error);
-                    isConnected = false;
-                    this.performanceMonitor.incrementErrors();
-                    messageBuffer.clear();
-                    if (ws.readyState === WebSocket.OPEN) {
-                        ws.close(1011, 'TCP server error');
-                    }
-                });
-
-            } catch (error) {
-                Logger.error('Failed to connect to TCP server:', error);
-                this.performanceMonitor.incrementErrors();
-                if (ws.readyState === WebSocket.OPEN) {
-                    ws.close(1011, 'Cannot connect to TCP server');
-                }
+            // Nếu đang có quá trình kết nối đang diễn ra, đợi nó hoàn tất
+            if (connectingPromise) {
+                return await connectingPromise;
             }
+            
+            // Nếu đã kết nối rồi, không cần kết nối lại
+            if (isConnected) {
+                return;
+            }
+            
+            // Tạo promise mới cho quá trình kết nối
+            connectingPromise = (async () => {
+                try {
+                    tcpClient = await tcpConnectionManager.connect();
+                    isConnected = true;
+                    connectingPromise = null; // Reset promise sau khi kết nối thành công
+
+                    tcpClient.on('data', (data) => {
+                        try {
+                            // Sử dụng message buffer để xử lý data có thể bị phân mảnh
+                            const messages = messageBuffer.addData(data);
+
+                            messages.forEach(messageData => {
+                                const message = this.parseTcpMessage(messageData);
+                                Logger.info(`[Gateway] Sending message to WebSocket client: ${message.type}`, message);
+                                if (ws.readyState === WebSocket.OPEN) {
+                                    ws.send(JSON.stringify(message));
+                                    this.performanceMonitor.incrementMessagesSent();
+                                }
+                            });
+                        } catch (error) {
+                            Logger.error('Error parsing TCP data:', error);
+                            this.performanceMonitor.incrementErrors();
+                        }
+                    });
+
+                    tcpClient.on('close', () => {
+                        Logger.warn('TCP connection closed');
+                        isConnected = false;
+                        connectingPromise = null; // Reset promise khi đóng kết nối
+                        messageBuffer.clear();
+                        if (ws.readyState === WebSocket.OPEN) {
+                            ws.close(1011, 'TCP server disconnected');
+                        }
+                    });
+
+                    tcpClient.on('error', (error) => {
+                        Logger.error('TCP connection error:', error);
+                        isConnected = false;
+                        connectingPromise = null; // Reset promise khi có lỗi
+                        this.performanceMonitor.incrementErrors();
+                        messageBuffer.clear();
+                        if (ws.readyState === WebSocket.OPEN) {
+                            ws.close(1011, 'TCP server error');
+                        }
+                    });
+
+                } catch (error) {
+                    connectingPromise = null; // Reset promise khi có lỗi
+                    Logger.error('Failed to connect to TCP server:', error);
+                    this.performanceMonitor.incrementErrors();
+                    if (ws.readyState === WebSocket.OPEN) {
+                        ws.close(1011, 'Cannot connect to TCP server');
+                    }
+                    throw error; // Re-throw để các message đang đợi biết kết nối thất bại
+                }
+            })();
+            
+            return await connectingPromise;
         };
 
         // Xử lý tin nhắn từ WebSocket client

@@ -107,8 +107,7 @@ export default function LoginRegister({ onLoginSuccess }) {
     const success = await login(
       loginForm.username,
       loginForm.password,
-      selectedAvatar,
-      navigate('/lobby')
+      selectedAvatar
     );
 
     if (success) {
