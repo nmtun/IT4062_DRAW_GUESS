@@ -226,6 +226,9 @@ class Gateway {
             case 'leave_room':
                 payload = this.createLeaveRoomPayload(message.data);
                 break;
+            case 'draw_data':
+                payload = this.createDrawDataPayload(message.data);
+                break;
             // import các case khác ở đây
             default:
                 Logger.warn('Unknown message type:', message.type);
@@ -284,6 +287,9 @@ class Gateway {
             case 0x17: // ROOM_PLAYERS_UPDATE
                 parsedData = this.parseRoomPlayersUpdate(payload);
                 break;
+            case 0x23: // DRAW_BROADCAST
+                parsedData = this.parseDrawBroadcast(payload);
+                break;
             default:
                 Logger.warn('Unknown message type from server:', type);
                 parsedData = { raw: payload.toString('hex') };
@@ -305,6 +311,7 @@ class Gateway {
             'create_room': 0x12,
             'join_room': 0x13,
             'leave_room': 0x14,
+            'draw_data': 0x22,
             // import các message khác ở đây
         };
 
@@ -326,6 +333,7 @@ class Gateway {
             0x14: 'leave_room_response',
             0x15: 'room_update',
             0x17: 'room_players_update',
+            0x23: 'draw_broadcast',
             // import các message khác ở đây
         };
         return types[type] || 'unknown';
@@ -371,6 +379,19 @@ class Gateway {
     createLeaveRoomPayload(data) {
         const buffer = Buffer.alloc(4);
         buffer.writeInt32BE(data.room_id, 0);
+        return buffer;
+    }
+
+    createDrawDataPayload(data) {
+        // Payload: action(1) + x1(2) + y1(2) + x2(2) + y2(2) + color(4) + width(1) = 14 bytes
+        const buffer = Buffer.alloc(14);
+        buffer.writeUInt8(data.action || 1, 0); // 1=LINE, 2=CLEAR, 3=ERASE
+        buffer.writeUInt16BE(data.x1 || 0, 1);
+        buffer.writeUInt16BE(data.y1 || 0, 3);
+        buffer.writeUInt16BE(data.x2 || 0, 5);
+        buffer.writeUInt16BE(data.y2 || 0, 7);
+        buffer.writeUInt32BE(data.color || 0, 9);
+        buffer.writeUInt8(data.width || 5, 13);
         return buffer;
     }
 
@@ -522,6 +543,38 @@ class Gateway {
             changed_username,
             player_count,
             players
+        };
+    }
+
+    parseDrawBroadcast(payload) {
+        if (payload.length < 14) {
+            Logger.warn('DRAW_BROADCAST payload too short');
+            return { error: 'Invalid payload' };
+        }
+
+        const action = payload.readUInt8(0);
+        const x1 = payload.readUInt16BE(1);
+        const y1 = payload.readUInt16BE(3);
+        const x2 = payload.readUInt16BE(5);
+        const y2 = payload.readUInt16BE(7);
+        const colorInt = payload.readUInt32BE(9);
+        const width = payload.readUInt8(13);
+
+        // Convert color integer to hex string
+        const r = (colorInt >>> 24) & 0xFF;
+        const g = (colorInt >>> 16) & 0xFF;
+        const b = (colorInt >>> 8) & 0xFF;
+        const colorHex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+
+        return {
+            action, // 1=LINE, 2=CLEAR, 3=ERASE
+            x1,
+            y1,
+            x2,
+            y2,
+            color: colorInt,
+            colorHex,
+            width
         };
     }
 
