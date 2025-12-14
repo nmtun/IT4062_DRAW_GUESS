@@ -56,15 +56,40 @@ class Gateway {
 
                 tcpClient.on('data', (data) => {
                     try {
+                        Logger.debug(`[Gateway] Received ${data.length} bytes from TCP server`);
                         // Sử dụng message buffer để xử lý data có thể bị phân mảnh
                         const messages = messageBuffer.addData(data);
+                        Logger.debug(`[Gateway] Parsed ${messages.length} complete message(s) from TCP data`);
 
                         messages.forEach(messageData => {
                             const message = this.parseTcpMessage(messageData);
                             Logger.info(`[Gateway] Sending message to WebSocket client: ${message.type}`, message);
+                            
+                            // Đặc biệt log draw_broadcast
+                            if (message.type === 'draw_broadcast') {
+                                Logger.info(`[Gateway] *** DRAW_BROADCAST detected! Sending to WebSocket client ***`);
+                                Logger.info(`[Gateway] DRAW_BROADCAST data:`, JSON.stringify(message.data, null, 2));
+                                Logger.info(`[Gateway] WebSocket readyState: ${ws.readyState}, client count: ${this.clients.size}`);
+                            }
+                            
                             if (ws.readyState === WebSocket.OPEN) {
-                                ws.send(JSON.stringify(message));
+                                const jsonMessage = JSON.stringify(message);
+                                Logger.debug(`[Gateway] WebSocket readyState: ${ws.readyState}, sending JSON (${jsonMessage.length} bytes)`);
+                                if (message.type === 'draw_broadcast') {
+                                    Logger.info(`[Gateway] *** SENDING draw_broadcast JSON to WebSocket ***`);
+                                    Logger.info(`[Gateway] JSON message: ${jsonMessage.substring(0, 200)}...`);
+                                }
+                                ws.send(jsonMessage);
                                 this.performanceMonitor.incrementMessagesSent();
+                                Logger.debug(`[Gateway] Message sent successfully`);
+                                if (message.type === 'draw_broadcast') {
+                                    Logger.info(`[Gateway] *** draw_broadcast sent successfully ***`);
+                                }
+                            } else {
+                                Logger.warn(`[Gateway] WebSocket not open (readyState: ${ws.readyState}), cannot send message`);
+                                if (message.type === 'draw_broadcast') {
+                                    Logger.error(`[Gateway] *** CANNOT SEND draw_broadcast - WebSocket not open! ***`);
+                                }
                             }
                         });
                     } catch (error) {
@@ -203,6 +228,11 @@ class Gateway {
             case 'leave_room':
                 payload = this.createLeaveRoomPayload(message.data);
                 break;
+            case 'draw_data':
+                Logger.info('[Gateway] Creating draw_data payload:', message.data);
+                payload = this.createDrawDataPayload(message.data);
+                Logger.info('[Gateway] Created draw_data payload, length:', payload.length);
+                break;
             // import các case khác ở đây
             default:
                 Logger.warn('Unknown message type:', message.type);
@@ -261,6 +291,11 @@ class Gateway {
             case 0x17: // ROOM_PLAYERS_UPDATE
                 parsedData = this.parseRoomPlayersUpdate(payload);
                 break;
+            case 0x23: // DRAW_BROADCAST
+                Logger.info('[Gateway] Received DRAW_BROADCAST, parsing...');
+                parsedData = this.parseDrawBroadcast(payload);
+                Logger.info('[Gateway] Parsed DRAW_BROADCAST:', parsedData);
+                break;
             default:
                 Logger.warn('Unknown message type from server:', type);
                 parsedData = { raw: payload.toString('hex') };
@@ -282,6 +317,7 @@ class Gateway {
             'create_room': 0x12,
             'join_room': 0x13,
             'leave_room': 0x14,
+            'draw_data': 0x22,
             // import các message khác ở đây
         };
 
@@ -303,6 +339,7 @@ class Gateway {
             0x14: 'leave_room_response',
             0x15: 'room_update',
             0x17: 'room_players_update',
+            0x23: 'draw_broadcast',
             // import các message khác ở đây
         };
         return types[type] || 'unknown';
@@ -348,6 +385,19 @@ class Gateway {
     createLeaveRoomPayload(data) {
         const buffer = Buffer.alloc(4);
         buffer.writeInt32BE(data.room_id, 0);
+        return buffer;
+    }
+
+    createDrawDataPayload(data) {
+        // Protocol: [action:1][x1:2][y1:2][x2:2][y2:2][color:4][width:1] = 14 bytes
+        const buffer = Buffer.alloc(14);
+        buffer.writeUInt8(data.action || 1, 0); // 1=LINE, 2=CLEAR, 3=ERASE
+        buffer.writeUInt16BE(data.x1 || 0, 1);
+        buffer.writeUInt16BE(data.y1 || 0, 3);
+        buffer.writeUInt16BE(data.x2 || 0, 5);
+        buffer.writeUInt16BE(data.y2 || 0, 7);
+        buffer.writeUInt32BE(data.color || 0, 9); // RGBA integer
+        buffer.writeUInt8(data.width || 5, 13);
         return buffer;
     }
 
@@ -499,6 +549,40 @@ class Gateway {
             changed_username,
             player_count,
             players
+        };
+    }
+
+    parseDrawBroadcast(payload) {
+        if (payload.length < 14) {
+            Logger.warn('DRAW_BROADCAST payload too short:', payload.length);
+            return { error: 'Invalid payload' };
+        }
+
+        const action = payload.readUInt8(0);
+        const x1 = payload.readUInt16BE(1);
+        const y1 = payload.readUInt16BE(3);
+        const x2 = payload.readUInt16BE(5);
+        const y2 = payload.readUInt16BE(7);
+        const colorInt = payload.readUInt32BE(9);
+        const width = payload.readUInt8(13);
+
+        Logger.debug(`[Gateway] Parsed DRAW_BROADCAST: action=${action}, (${x1},${y1})->(${x2},${y2}), color=0x${colorInt.toString(16)}, width=${width}`);
+
+        // Convert color integer to hex string (for reference, but we return colorInt for Canvas)
+        const r = (colorInt >>> 24) & 0xFF;
+        const g = (colorInt >>> 16) & 0xFF;
+        const b = (colorInt >>> 8) & 0xFF;
+        const colorHex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+
+        return {
+            action, // 1=LINE, 2=CLEAR, 3=ERASE
+            x1,
+            y1,
+            x2,
+            y2,
+            color: colorInt, // Keep as integer for Canvas.jsx
+            colorHex, // For reference
+            width
         };
     }
 

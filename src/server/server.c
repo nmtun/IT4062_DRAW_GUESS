@@ -195,6 +195,14 @@ int server_broadcast_to_room(server_t* server, int room_id, uint8_t msg_type,
 
     // Gửi message đến tất cả clients trong phòng
     int sent_count = 0;
+    printf("[DEBUG] Broadcasting message 0x%02X to room %d (exclude_user_id=%d)\n", 
+           msg_type, room_id, exclude_user_id);
+    printf("[DEBUG] Room has %d players: ", room->player_count);
+    for (int p = 0; p < room->player_count; p++) {
+        printf("%d ", room->players[p]);
+    }
+    printf("\n");
+    
     for (int i = 0; i < MAX_CLIENTS; i++) {
         client_t* client = &server->clients[i];
         
@@ -205,13 +213,23 @@ int server_broadcast_to_room(server_t* server, int room_id, uint8_t msg_type,
 
         // Bỏ qua client bị loại trừ
         if (exclude_user_id > 0 && client->user_id == exclude_user_id) {
+            printf("[DEBUG] Skipping excluded client %d (user_id=%d)\n", i, client->user_id);
             continue;
         }
 
         // Kiểm tra client có trong phòng không
         if (room_has_player(room, client->user_id)) {
+            printf("[DEBUG] Sending to client %d (user_id=%d, fd=%d)\n", 
+                   i, client->user_id, client->fd);
             if (protocol_send_message(client->fd, msg_type, payload, payload_len) == 0) {
                 sent_count++;
+                printf("[DEBUG] Successfully sent to client %d\n", i);
+            } else {
+                printf("[DEBUG] Failed to send to client %d\n", i);
+            }
+        } else {
+            if (client->user_id > 0) {
+                printf("[DEBUG] Client %d (user_id=%d) not in room\n", i, client->user_id);
             }
         }
     }

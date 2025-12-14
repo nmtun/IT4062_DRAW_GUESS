@@ -127,6 +127,20 @@ class Services {
             const message = JSON.parse(event.data);
             console.log('[Services] Received message:', message.type, message);
             
+            // Đặc biệt log draw_broadcast để debug
+            if (message.type === 'draw_broadcast') {
+                console.log('[Services] *** DRAW_BROADCAST RECEIVED ***');
+                console.log('[Services] draw_broadcast data:', message.data);
+                console.log('[Services] Has subscribers:', this.callbacks.has('draw_broadcast'));
+                if (this.callbacks.has('draw_broadcast')) {
+                    const callbackSet = this.callbacks.get('draw_broadcast');
+                    const count = callbackSet instanceof Set ? callbackSet.size : 1;
+                    console.log(`[Services] draw_broadcast callback count: ${count}`);
+                } else {
+                    console.warn('[Services] No subscribers for draw_broadcast!');
+                }
+            }
+            
             // Cache room updates for later replay
             if (message.type === 'room_players_update' && message.data?.room_id) {
                 this.roomUpdatesCache.set(message.data.room_id, message.data);
@@ -146,6 +160,9 @@ class Services {
             // Trigger callbacks nếu có
             if (this.callbacks.has(message.type)) {
                 const callbackSet = this.callbacks.get(message.type);
+                if (message.type === 'draw_broadcast') {
+                    console.log('[Services] Triggering draw_broadcast callbacks...');
+                }
                 if (callbackSet instanceof Set) {
                     callbackSet.forEach(callback => {
                         try {
@@ -161,6 +178,10 @@ class Services {
                     } catch (err) {
                         console.error('Callback error:', err);
                     }
+                }
+            } else {
+                if (message.type === 'draw_broadcast') {
+                    console.warn('[Services] draw_broadcast received but no subscribers!');
                 }
             }
 
@@ -405,7 +426,20 @@ class Services {
     /**
      * Đăng xuất
      */
-    logout() {
+    async logout() {
+        // Rời phòng trước nếu đang trong phòng
+        if (this.currentRoomId) {
+            console.log('[Services] Logging out, leaving room first:', this.currentRoomId);
+            try {
+                await this.leaveRoom(this.currentRoomId);
+            } catch (err) {
+                console.warn('[Services] Error leaving room during logout:', err);
+            } finally {
+                // Reset currentRoomId ngay cả khi leaveRoom thất bại
+                this.currentRoomId = null;
+            }
+        }
+        
         const message = {
             type: 'logout',
             data: {}
@@ -529,10 +563,81 @@ class Services {
     }
     
     /**
+     * Chuyển đổi màu hex sang RGBA integer (32-bit)
+     * @param {string} hex - Màu hex format (#RRGGBB)
+     * @returns {number} RGBA integer (R<<24 | G<<16 | B<<8 | A)
+     */
+    hexToRGBA(hex) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        const a = 255;
+        return (r << 24) | (g << 16) | (b << 8) | a;
+    }
+
+    /**
+     * Gửi dữ liệu vẽ đến server
+     * @param {number} x1 - Tọa độ X điểm bắt đầu
+     * @param {number} y1 - Tọa độ Y điểm bắt đầu
+     * @param {number} x2 - Tọa độ X điểm kết thúc
+     * @param {number} y2 - Tọa độ Y điểm kết thúc
+     * @param {string} color - Màu hex (#RRGGBB)
+     * @param {number} width - Độ rộng bút vẽ (1-20)
+     * @param {boolean} isEraser - Có phải chế độ xóa không
+     * @returns {boolean} true nếu gửi thành công
+     */
+    sendDrawData(x1, y1, x2, y2, color = '#000000', width = 5, isEraser = false) {
+        const action = isEraser ? 3 : 1; // 1 = LINE, 3 = ERASE
+        const colorInt = isEraser ? 0 : this.hexToRGBA(color);
+
+        const message = {
+            type: 'draw_data',
+            data: {
+                action: action,
+                x1: Math.round(x1),
+                y1: Math.round(y1),
+                x2: Math.round(x2),
+                y2: Math.round(y2),
+                color: colorInt,
+                width: Math.max(1, Math.min(20, width))
+            }
+        };
+        console.log('[Services] Sending draw_data:', message.data);
+        return this.send(message);
+    }
+
+    /**
+     * Gửi lệnh xóa canvas
+     * @returns {boolean} true nếu gửi thành công
+     */
+    sendClearCanvas() {
+        const message = {
+            type: 'draw_data',
+            data: {
+                action: 2, // CLEAR
+                x1: 0,
+                y1: 0,
+                x2: 0,
+                y2: 0,
+                color: 0,
+                width: 0
+            }
+        };
+        return this.send(message);
+    }
+    
+    /**
      * Ngắt kết nối
      */
     disconnect() {
         this.isDisconnecting = true;
+
+        // Reset currentRoomId ngay lập tức khi disconnect
+        // (không cần rời phòng vì connection sẽ đóng, server sẽ tự xử lý)
+        if (this.currentRoomId) {
+            console.log('[Services] Disconnecting, resetting currentRoomId:', this.currentRoomId);
+            this.currentRoomId = null;
+        }
 
         // Clear reconnect timer
         if (this.reconnectTimer) {
@@ -556,12 +661,15 @@ class Services {
             this.ws = null;
         }
 
+        // Reset tất cả state
         this.callbacks.clear();
         this.messageQueue.length = 0;
         this.reconnectAttempts = 0;
         this.connectionPromise = null;
         this.isConnecting = false;
         this.isDisconnecting = false;
+        this.currentRoomId = null; // Reset currentRoomId khi disconnect (đảm bảo)
+        this.roomUpdatesCache.clear(); // Clear room cache
     }
 
     /**

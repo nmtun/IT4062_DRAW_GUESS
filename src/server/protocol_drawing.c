@@ -34,11 +34,11 @@ int protocol_handle_draw_data(server_t* server, int client_index, const message_
     }
 
     // Kiểm tra phòng có đang chơi game không
-    if (room->state != ROOM_PLAYING) {
-        fprintf(stderr, "Phòng %d không đang chơi game (state=%d)\n", 
-                room->room_id, room->state);
-        return -1;
-    }
+    // if (room->state != ROOM_PLAYING) {
+    //     fprintf(stderr, "Phòng %d không đang chơi game (state=%d)\n", 
+    //             room->room_id, room->state);
+    //     return -1;
+    // }
 
     // TODO: Kiểm tra client có phải là drawer không
     // (Cần kiểm tra game_state->drawer_id == client->user_id)

@@ -184,9 +184,19 @@ export default function Lobby({ onJoinRoom, onCreateRoom, rooms = [] }) {
     }
   };
 
-  const handleLogout = () => {
-    getServices().logout();
-    getServices().disconnect();
+  const handleLogout = async () => {
+    const services = getServices();
+    // Rời phòng trước nếu đang trong phòng
+    if (services.currentRoomId) {
+      try {
+        await services.leaveRoom(services.currentRoomId);
+      } catch (err) {
+        console.warn('Error leaving room during logout:', err);
+      }
+    }
+    // Sau đó logout và disconnect
+    services.logout();
+    services.disconnect();
     clearUserData();
     navigate('/');
   }
