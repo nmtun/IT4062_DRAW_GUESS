@@ -45,13 +45,13 @@ export default function GameRoom({
   const [word, setWord] = useState(externalWord);
   const [players, setPlayers] = useState(externalPlayers);
   const [maxPlayers, setMaxPlayers] = useState(10);
-  
+
   // Mock game data
   const [currentRound, setCurrentRound] = useState(1);
   const [totalRounds] = useState(3);
   const [currentDrawerId, setCurrentDrawerId] = useState(null);
   const [roundStartTime, setRoundStartTime] = useState(null); // Timestamp khi bắt đầu lượt
-  
+
   // Drawing controls
   const [isDrawing, setIsDrawing] = useState(false); // Sẽ được set dựa trên currentDrawerId
   const [currentColor, setCurrentColor] = useState('#000000');
@@ -73,10 +73,10 @@ export default function GameRoom({
   // Khởi tạo game với mock data
   const initializeMockGame = () => {
     if (players.length === 0) return;
-    
+
     const drawerId = selectNextDrawer(players, currentRound);
     const mockWord = getWordForRound(currentRound);
-    
+
     setCurrentDrawerId(drawerId);
     setWord(mockWord);
     setIsDrawing(drawerId === user?.id);
@@ -95,7 +95,7 @@ export default function GameRoom({
       }
 
       const newRound = prevRound + 1;
-      
+
       // Lấy players hiện tại và tính toán drawer
       setPlayers((prevPlayers) => {
         const drawerId = selectNextDrawer(prevPlayers, newRound);
@@ -108,20 +108,20 @@ export default function GameRoom({
         setIsDrawing(drawerId === user?.id);
         setRoundStartTime(startTime); // Reset timestamp khi chuyển lượt
         setTimeLeft(DEFAULT_ROUND_TIME);
-        
+
         // Lưu vào localStorage để client vào sau có thể đồng bộ
         if (roomId) {
           localStorage.setItem(`roundStartTime_${roomId}_${newRound}`, startTime.toString());
         }
-        
+
         // Xóa canvas khi chuyển lượt
         if (canvasRef.current && canvasRef.current.clearCanvas) {
           canvasRef.current.clearCanvas();
         }
-        
+
         return prevPlayers;
       });
-      
+
       return newRound;
     });
   }, [totalRounds, user?.id]);
@@ -133,9 +133,9 @@ export default function GameRoom({
     const updateTimer = () => {
       const elapsed = Math.floor((Date.now() - roundStartTime) / 1000);
       const remaining = Math.max(0, DEFAULT_ROUND_TIME - elapsed);
-      
+
       setTimeLeft(remaining);
-      
+
       if (remaining <= 0) {
         // Hết thời gian, chuyển lượt
         nextRound();
@@ -157,7 +157,7 @@ export default function GameRoom({
     if (players.length > 0 && gameState === 'waiting' && !currentDrawerId) {
       const drawerId = selectNextDrawer(players, currentRound);
       const mockWord = getWordForRound(currentRound);
-      
+
       const startTime = Date.now();
       setCurrentDrawerId(drawerId);
       setWord(mockWord);
@@ -165,7 +165,7 @@ export default function GameRoom({
       setGameState('playing');
       setRoundStartTime(startTime); // Lưu timestamp bắt đầu lượt
       setTimeLeft(DEFAULT_ROUND_TIME);
-      
+
       // Lưu vào localStorage để client vào sau có thể đồng bộ
       if (roomId) {
         localStorage.setItem(`roundStartTime_${roomId}_${currentRound}`, startTime.toString());
@@ -180,7 +180,7 @@ export default function GameRoom({
       const timer = setTimeout(() => {
         const drawerId = selectNextDrawer(players, currentRound);
         const mockWord = getWordForRound(currentRound);
-        
+
         const startTime = Date.now();
         setCurrentDrawerId(drawerId);
         setWord(mockWord);
@@ -188,13 +188,13 @@ export default function GameRoom({
         setGameState('playing');
         setRoundStartTime(startTime); // Lưu timestamp bắt đầu lượt
         setTimeLeft(DEFAULT_ROUND_TIME);
-        
+
         // Lưu vào localStorage để client vào sau có thể đồng bộ
         if (roomId) {
           localStorage.setItem(`roundStartTime_${roomId}_${currentRound}`, startTime.toString());
         }
       }, 100);
-      
+
       return () => clearTimeout(timer);
     }
   }, [players, currentDrawerId, gameState, currentRound, user?.id]);
@@ -234,7 +234,7 @@ export default function GameRoom({
       console.log('Updated players:', mapped);
       const prevPlayersCount = players.length;
       setPlayers(mapped);
-      
+
       // Nếu client vào sau (players tăng từ 0 lên > 0) và game đã bắt đầu
       // Đồng bộ timer bằng cách lấy roundStartTime từ localStorage (nếu có)
       if (prevPlayersCount === 0 && mapped.length > 0 && gameState === 'playing' && !roundStartTime) {
@@ -282,21 +282,21 @@ export default function GameRoom({
 
     const subscribe = () => {
       console.log('[GameRoom] Subscribing to room events...');
-      
+
       // Global listener để debug tất cả messages
       services.subscribe('*', (message) => {
         console.log('[GameRoom] Received any message:', message);
       });
-      
+
       services.subscribe('room_players_update', handleRoomPlayersUpdate);
       services.subscribe('room_update', handleRoomUpdate);
-      
+
       // Subscribe draw_broadcast để nhận drawing từ người khác
       services.subscribe('draw_broadcast', handleDrawBroadcast);
       console.log('[GameRoom] Subscribed to room events including draw_broadcast');
-      
+
       // Verify subscription
-      console.log('[GameRoom] Subscription verification - draw_broadcast:', 
+      console.log('[GameRoom] Subscription verification - draw_broadcast:',
         services.callbacks && services.callbacks.has('draw_broadcast') ? 'YES' : 'NO');
     };
 
@@ -314,18 +314,18 @@ export default function GameRoom({
         console.log('[GameRoom] Connected to services successfully');
         // Đăng ký lắng nghe NGAY để không bỏ lỡ broadcast
         subscribe();
-        
+
         const id = parseInt(roomId, 10);
         const current = services.currentRoomId;
         console.log('[GameRoom] Current room ID:', current, 'Target room ID:', id);
-        
+
         // Kiểm tra cache trước tiên
         const cached = services.getCachedRoomUpdate(id);
         if (cached) {
           console.log('[GameRoom] Using cached room data:', cached);
           handleRoomPlayersUpdate(cached);
         }
-        
+
         if (current !== id) {
           console.log('[GameRoom] Joining room:', id);
           // Join room - server sẽ broadcast room_players_update sau khi join thành công
@@ -411,15 +411,62 @@ export default function GameRoom({
           </button>
         </div>
         <div className="header-center">
-          <div className="timer">
-            <span className="timer-icon">⏱️</span>
-            <span className="timer-text">{timeLeft}s</span>
-          </div>
-          {gameState === 'playing' && (
-            <div className="round-info">
-              <span className="round-text">Lượt {currentRound}/{totalRounds}</span>
+          <div className="timer-wrapper">
+            <div className="timer">
+              <span className="timer-icon">⏱️</span>
+              <span className="timer-text">{timeLeft}s</span>
             </div>
-          )}
+
+            {gameState === 'playing' && (
+              <div className="round-info">
+                <span className="round-text">
+                  Lượt {currentRound}/{totalRounds}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="game-status">
+            {gameState === 'waiting' && players.length === 0 && (
+              <div className="status-banner waiting">
+                <h2>ĐANG CHỜ</h2>
+                <p>Đang chờ người chơi tham gia...</p>
+              </div>
+            )}
+            {gameState === 'waiting' && players.length > 0 && !currentDrawerId && (
+              <div className="status-banner waiting">
+                <h2>CHUẨN BỊ</h2>
+                <p>Đang chuẩn bị bắt đầu game...</p>
+              </div>
+            )}
+            {gameState === 'playing' && isDrawing && (
+              <div className="status-banner drawing">
+                <h2>BẠN ĐANG VẼ</h2>
+                <p className="word-display">{word || 'Từ bí mật: ???'}</p>
+                <p className="round-info-text">Lượt {currentRound}/{totalRounds}</p>
+              </div>
+            )}
+            {gameState === 'playing' && !isDrawing && currentDrawerId && (
+              <div className="status-banner guessing">
+                <h2>ĐOÁN TỪ</h2>
+                <p>Hãy đoán từ mà người chơi đang vẽ!</p>
+                <p className="drawer-info">
+                  Người vẽ: {players.find(p => p.id === currentDrawerId)?.username || 'Đang vẽ...'}
+                </p>
+              </div>
+            )}
+            {gameState === 'playing' && !isDrawing && !currentDrawerId && (
+              <div className="status-banner waiting">
+                <h2>CHUẨN BỊ</h2>
+                <p>Đang chờ lượt tiếp theo...</p>
+              </div>
+            )}
+            {gameState === 'finished' && (
+              <div className="status-banner waiting">
+                <h2>TRÒ CHƠI KẾT THÚC</h2>
+                <p>Đã hoàn thành {totalRounds} lượt chơi!</p>
+              </div>
+            )}
+          </div>
         </div>
         <div className="header-right">
         </div>
@@ -435,49 +482,7 @@ export default function GameRoom({
 
           {/* Center Panel - Canvas */}
           <section className="game-center">
-            <div className="game-status">
-              {gameState === 'waiting' && players.length === 0 && (
-                <div className="status-banner waiting">
-                  <h2>ĐANG CHỜ</h2>
-                  <p>Đang chờ người chơi tham gia...</p>
-                </div>
-              )}
-              {gameState === 'waiting' && players.length > 0 && !currentDrawerId && (
-                <div className="status-banner waiting">
-                  <h2>CHUẨN BỊ</h2>
-                  <p>Đang chuẩn bị bắt đầu game...</p>
-                </div>
-              )}
-              {gameState === 'playing' && isDrawing && (
-                <div className="status-banner drawing">
-                  <h2>BẠN ĐANG VẼ</h2>
-                  <p className="word-display">{word || 'Từ bí mật: ???'}</p>
-                  <p className="round-info-text">Lượt {currentRound}/{totalRounds}</p>
-                </div>
-              )}
-              {gameState === 'playing' && !isDrawing && currentDrawerId && (
-                <div className="status-banner guessing">
-                  <h2>ĐOÁN TỪ</h2>
-                  <p>Hãy đoán từ mà người chơi đang vẽ!</p>
-                  <p className="drawer-info">
-                    Người vẽ: {players.find(p => p.id === currentDrawerId)?.username || 'Đang vẽ...'}
-                  </p>
-                </div>
-              )}
-              {gameState === 'playing' && !isDrawing && !currentDrawerId && (
-                <div className="status-banner waiting">
-                  <h2>CHUẨN BỊ</h2>
-                  <p>Đang chờ lượt tiếp theo...</p>
-                </div>
-              )}
-              {gameState === 'finished' && (
-                <div className="status-banner waiting">
-                  <h2>TRÒ CHƠI KẾT THÚC</h2>
-                  <p>Đã hoàn thành {totalRounds} lượt chơi!</p>
-                </div>
-              )}
-            </div>
-            <Canvas 
+            <Canvas
               ref={canvasRef}
               isDrawing={isDrawing && gameState === 'playing'}
               onDraw={handleDraw}
@@ -490,31 +495,31 @@ export default function GameRoom({
               <div className="drawing-controls">
                 <div className="color-picker-group">
                   <label>Màu:</label>
-                  <input 
-                    type="color" 
-                    value={currentColor} 
+                  <input
+                    type="color"
+                    value={currentColor}
                     onChange={(e) => setCurrentColor(e.target.value)}
                     disabled={isEraser}
                   />
                 </div>
                 <div className="brush-size-group">
                   <label>Kích thước:</label>
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="20" 
-                    value={brushSize} 
+                  <input
+                    type="range"
+                    min="1"
+                    max="20"
+                    value={brushSize}
                     onChange={(e) => setBrushSize(parseInt(e.target.value))}
                   />
                   <span>{brushSize}px</span>
                 </div>
-                <button 
+                <button
                   className={`eraser-btn ${isEraser ? 'active' : ''}`}
                   onClick={() => setIsEraser(!isEraser)}
                 >
                   {isEraser ? '✏️ Bút' : '🧹 Tẩy'}
                 </button>
-                <button 
+                <button
                   className="clear-btn"
                   onClick={handleClearCanvas}
                 >

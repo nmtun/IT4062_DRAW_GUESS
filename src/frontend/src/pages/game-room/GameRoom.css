@@ -19,9 +19,9 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: 
-    radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px),
-    radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
   background-size: 50px 50px, 100px 100px;
   background-position: 0 0, 25px 25px;
   opacity: 0.3;
@@ -47,9 +47,19 @@
 .header-center {
   flex: 2;
   display: flex;
-  justify-content: center;
+  flex-direction: row;
   align-items: center;
+  justify-content: center;
+  gap: 24px;
 }
+
+.timer-round-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
 
 .back-btn {
   background: #ffffff;
@@ -68,9 +78,9 @@
 }
 
 .game-logo {
-  font-size: 2rem; 
-  font-weight: bold; 
-  color: white; 
+  font-size: 2rem;
+  font-weight: bold;
+  color: white;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
@@ -167,10 +177,19 @@
 
 .game-status {
   flex-shrink: 0;
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.game-status {
-  flex-shrink: 0;
+.timer-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* căn giữa */
+  gap: 6px;
+  /* khoảng cách giữa timer và round */
 }
 
 .status-banner {
@@ -179,6 +198,9 @@
   text-align: center;
   color: white;
   font-weight: bold;
+  width: 100%;
+  margin: 0;
+  padding: 10px 20px;
 }
 
 .status-banner.waiting {
@@ -207,7 +229,7 @@
   font-size: 2rem !important;
   font-weight: bold;
   letter-spacing: 4px;
-  text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
   margin: 10px 0;
 }
 
@@ -383,4 +405,3 @@
     font-size: 1.5rem !important;
   }
 }
-
