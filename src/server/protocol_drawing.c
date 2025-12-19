@@ -1,6 +1,7 @@
 #include "../include/drawing.h"
 #include "../include/room.h"
 #include "../include/server.h"
+#include "../include/game.h"
 #include "../common/protocol.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,9 +41,12 @@ int protocol_handle_draw_data(server_t* server, int client_index, const message_
         return -1;
     }
 
-    // TODO: Kiểm tra client có phải là drawer không
-    // (Cần kiểm tra game_state->drawer_id == client->user_id)
-    // Hiện tại tạm thời cho phép bất kỳ ai trong phòng đang chơi
+    // Chỉ drawer mới được gửi DRAW_DATA
+    if (!room->game || room->game->drawer_id != client->user_id) {
+        fprintf(stderr, "Client %d (user_id=%d) không phải drawer, ignore DRAW_DATA\n",
+                client_index, client->user_id);
+        return -1;
+    }
 
     // Parse draw action từ payload
     draw_action_t action;

@@ -229,6 +229,15 @@ class Gateway {
             case 'draw_data':
                 payload = this.createDrawDataPayload(message.data);
                 break;
+            case 'start_game':
+                payload = this.createStartGamePayload(message.data);
+                break;
+            case 'guess_word':
+                payload = this.createGuessWordPayload(message.data);
+                break;
+            case 'chat_message':
+                payload = this.createChatMessagePayload(message.data);
+                break;
             // import các case khác ở đây
             default:
                 Logger.warn('Unknown message type:', message.type);
@@ -290,6 +299,24 @@ class Gateway {
             case 0x23: // DRAW_BROADCAST
                 parsedData = this.parseDrawBroadcast(payload);
                 break;
+            case 0x20: // GAME_START
+                parsedData = this.parseGameStart(payload);
+                break;
+            case 0x25: // CORRECT_GUESS
+                parsedData = this.parseCorrectGuess(payload);
+                break;
+            case 0x26: // WRONG_GUESS
+                parsedData = this.parseWrongGuess(payload);
+                break;
+            case 0x27: // ROUND_END
+                parsedData = this.parseRoundEnd(payload);
+                break;
+            case 0x28: // GAME_END
+                parsedData = this.parseGameEnd(payload);
+                break;
+            case 0x31: // CHAT_BROADCAST
+                parsedData = this.parseChatBroadcast(payload);
+                break;
             default:
                 Logger.warn('Unknown message type from server:', type);
                 parsedData = { raw: payload.toString('hex') };
@@ -311,7 +338,10 @@ class Gateway {
             'create_room': 0x12,
             'join_room': 0x13,
             'leave_room': 0x14,
+            'start_game': 0x16,
             'draw_data': 0x22,
+            'guess_word': 0x24,
+            'chat_message': 0x30,
             // import các message khác ở đây
         };
 
@@ -333,7 +363,13 @@ class Gateway {
             0x14: 'leave_room_response',
             0x15: 'room_update',
             0x17: 'room_players_update',
+            0x20: 'game_start',
+            0x25: 'correct_guess',
+            0x26: 'wrong_guess',
+            0x27: 'round_end',
+            0x28: 'game_end',
             0x23: 'draw_broadcast',
+            0x31: 'chat_broadcast',
             // import các message khác ở đây
         };
         return types[type] || 'unknown';
@@ -392,6 +428,22 @@ class Gateway {
         buffer.writeUInt16BE(data.y2 || 0, 7);
         buffer.writeUInt32BE(data.color || 0, 9);
         buffer.writeUInt8(data.width || 5, 13);
+        return buffer;
+    }
+
+    createStartGamePayload() {
+        return Buffer.alloc(0);
+    }
+
+    createGuessWordPayload(data) {
+        const buffer = Buffer.alloc(64);
+        buffer.write((data && data.word) ? String(data.word) : '', 0, 64, 'utf8');
+        return buffer;
+    }
+
+    createChatMessagePayload(data) {
+        const buffer = Buffer.alloc(256);
+        buffer.write((data && data.message) ? String(data.message) : '', 0, 256, 'utf8');
         return buffer;
     }
 
@@ -576,6 +628,121 @@ class Gateway {
             colorHex,
             width
         };
+    }
+
+    // --------------------------
+    // Game payload parsers
+    // --------------------------
+    parseGameStart(payload) {
+        // drawer_id(4) + word_length(1) + time_limit(2) + round_start_ms(8) + word(64) = 79 bytes
+        if (payload.length < 79) {
+            Logger.warn('GAME_START payload too short');
+            return { error: 'Invalid payload' };
+        }
+        const drawer_id_raw = payload.readUInt32BE(0);
+        const drawer_id = drawer_id_raw > 0x7FFFFFFF ? drawer_id_raw - 0x100000000 : drawer_id_raw;
+        const word_length = payload.readUInt8(4);
+        const time_limit = payload.readUInt16BE(5);
+        let round_start_ms = 0;
+        try {
+            round_start_ms = Number(payload.readBigUInt64BE(7));
+        } catch (_) {
+            // fallback (older node)
+            const hi = payload.readUInt32BE(7);
+            const lo = payload.readUInt32BE(11);
+            round_start_ms = hi * 4294967296 + lo;
+        }
+        const word = payload.slice(15, 79).toString('utf8').replace(/\0/g, '');
+        return { drawer_id, word_length, time_limit, round_start_ms, word };
+    }
+
+    parseCorrectGuess(payload) {
+        // player_id(4) + word(64) + points(2) = 70 bytes
+        if (payload.length < 70) {
+            Logger.warn('CORRECT_GUESS payload too short');
+            return { error: 'Invalid payload' };
+        }
+        const player_id_raw = payload.readUInt32BE(0);
+        const player_id = player_id_raw > 0x7FFFFFFF ? player_id_raw - 0x100000000 : player_id_raw;
+        const word = payload.slice(4, 68).toString('utf8').replace(/\0/g, '');
+        const points = payload.readUInt16BE(68);
+        return { player_id, word, points };
+    }
+
+    parseWrongGuess(payload) {
+        // player_id(4) + guess(64) = 68 bytes
+        if (payload.length < 68) {
+            Logger.warn('WRONG_GUESS payload too short');
+            return { error: 'Invalid payload' };
+        }
+        const player_id_raw = payload.readUInt32BE(0);
+        const player_id = player_id_raw > 0x7FFFFFFF ? player_id_raw - 0x100000000 : player_id_raw;
+        const guess = payload.slice(4, 68).toString('utf8').replace(/\0/g, '');
+        return { player_id, guess };
+    }
+
+    parseRoundEnd(payload) {
+        // word(64) + score_count(2) + pairs(user_id(4), score(4))...
+        if (payload.length < 66) {
+            Logger.warn('ROUND_END payload too short');
+            return { error: 'Invalid payload' };
+        }
+        const word = payload.slice(0, 64).toString('utf8').replace(/\0/g, '');
+        const score_count = payload.readUInt16BE(64);
+        let offset = 66;
+        const scores = [];
+        for (let i = 0; i < score_count; i++) {
+            if (offset + 8 > payload.length) break;
+            const uid_raw = payload.readUInt32BE(offset);
+            const user_id = uid_raw > 0x7FFFFFFF ? uid_raw - 0x100000000 : uid_raw;
+            const score_raw = payload.readUInt32BE(offset + 4);
+            const score = score_raw > 0x7FFFFFFF ? score_raw - 0x100000000 : score_raw;
+            scores.push({ user_id, score });
+            offset += 8;
+        }
+        return { word, score_count, scores };
+    }
+
+    parseGameEnd(payload) {
+        // winner_id(4) + score_count(2) + pairs(user_id(4), score(4))...
+        if (payload.length < 6) {
+            Logger.warn('GAME_END payload too short');
+            return { error: 'Invalid payload' };
+        }
+        const winner_id_raw = payload.readUInt32BE(0);
+        const winner_id = winner_id_raw > 0x7FFFFFFF ? winner_id_raw - 0x100000000 : winner_id_raw;
+        const score_count = payload.readUInt16BE(4);
+        let offset = 6;
+        const scores = [];
+        for (let i = 0; i < score_count; i++) {
+            if (offset + 8 > payload.length) break;
+            const uid_raw = payload.readUInt32BE(offset);
+            const user_id = uid_raw > 0x7FFFFFFF ? uid_raw - 0x100000000 : uid_raw;
+            const score_raw = payload.readUInt32BE(offset + 4);
+            const score = score_raw > 0x7FFFFFFF ? score_raw - 0x100000000 : score_raw;
+            scores.push({ user_id, score });
+            offset += 8;
+        }
+        return { winner_id, score_count, scores };
+    }
+
+    parseChatBroadcast(payload) {
+        // username(32) + message(256) + timestamp(8)
+        if (payload.length < 296) {
+            Logger.warn('CHAT_BROADCAST payload too short');
+            return { error: 'Invalid payload' };
+        }
+        const username = payload.slice(0, 32).toString('utf8').replace(/\0/g, '');
+        const message = payload.slice(32, 288).toString('utf8').replace(/\0/g, '');
+        let timestamp = 0;
+        try {
+            timestamp = Number(payload.readBigUInt64BE(288));
+        } catch (_) {
+            const hi = payload.readUInt32BE(288);
+            const lo = payload.readUInt32BE(292);
+            timestamp = hi * 4294967296 + lo;
+        }
+        return { username, message, timestamp };
     }
 
     // parse response khác ở đây

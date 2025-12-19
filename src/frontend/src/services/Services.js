@@ -592,6 +592,44 @@ class Services {
     }
 
     /**
+     * Start game (owner only)
+     */
+    startGame() {
+        const message = {
+            type: 'start_game',
+            data: {}
+        };
+        return this.send(message);
+    }
+
+    /**
+     * Gửi guess word
+     * @param {string} word
+     */
+    guessWord(word) {
+        const message = {
+            type: 'guess_word',
+            data: {
+                word: (word || '').toString()
+            }
+        };
+        return this.send(message);
+    }
+
+    /**
+     * (Optional) Gửi chat message - gateway/server có thể chưa implement.
+     */
+    sendChatMessage(text) {
+        const message = {
+            type: 'chat_message',
+            data: {
+                message: (text || '').toString()
+            }
+        };
+        return this.send(message);
+    }
+
+    /**
      * Ngắt kết nối
      */
     disconnect() {

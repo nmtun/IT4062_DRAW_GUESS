@@ -116,7 +116,8 @@ TARGET = main$(EXE)
 # Source files
 SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/server.c $(SRC_DIR)/database.c $(SRC_DIR)/auth.c \
        $(SRC_DIR)/protocol.c $(SRC_DIR)/protocol_core.c $(SRC_DIR)/protocol_auth.c $(SRC_DIR)/protocol_room.c \
-       $(SRC_DIR)/protocol_drawing.c $(SRC_DIR)/room.c $(SRC_DIR)/drawing.c
+       $(SRC_DIR)/protocol_drawing.c $(SRC_DIR)/protocol_game.c $(SRC_DIR)/room.c $(SRC_DIR)/drawing.c $(SRC_DIR)/game.c \
+       $(SRC_DIR)/protocol_chat.c $(SRC_DIR)/sha256.c
 
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 

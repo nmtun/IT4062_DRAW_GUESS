@@ -348,18 +348,38 @@
   font-size: 1.5rem;
 }
 
-/* Responsive */
+/* Responsive Design */
+
+/* Tablet Landscape (968px - 1200px) */
+@media (max-width: 1200px) {
+  .lobby-main {
+    max-width: 1200px;
+    padding: 15px 25px;
+  }
+  
+  .lobby-logo {
+    font-size: 2.8rem;
+  }
+  
+  .rooms-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+  }
+}
+
+/* Tablet Portrait (768px - 968px) */
 @media (max-width: 968px) {
   .lobby-header {
     flex-direction: column;
     gap: 15px;
-    padding: 20px;
+    padding: 15px 20px;
   }
 
   .header-left,
   .header-right {
     position: static;
     align-self: center;
+    transform: none;
   }
 
   .header-center {
@@ -368,37 +388,75 @@
   }
 
   .lobby-logo {
+    font-size: 2.3rem;
+  }
+  
+  .lobby-avatar {
+    width: 50px;
+    height: 50px;
     font-size: 2.5rem;
+  }
+  
+  .username {
+    font-size: 0.9rem;
+    padding: 5px 8px;
+  }
+
+  .lobby-main {
+    padding: 15px 20px;
+    max-height: 75vh;
   }
 
   .rooms-grid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
   }
 
   .lobby-actions {
-    flex-direction: column;
+    flex-direction: row;
+    gap: 15px;
   }
 
   .btn-new-room,
   .btn-play {
-    width: 100%;
-    justify-content: center;
+    flex: 1;
+    padding: 14px 30px;
+    font-size: 1.1rem;
   }
 }
 
-@media (max-width: 900px) {
+/* Tablet Small (600px - 768px) */
+@media (max-width: 768px) {
+  .lobby-header {
+    padding: 12px 15px;
+  }
+  
+  .lobby-logo {
+    font-size: 2rem;
+  }
+  
+  .lobby-main {
+    padding: 12px 15px;
+    max-height: 80vh;
+  }
+  
   .rooms-header {
     flex-direction: column;
-    gap: 15px;
+    gap: 12px;
     position: sticky;
     top: 0;
-    padding: 20px 15px;
+    padding: 15px 12px;
+    margin-top: -12px;
   }
 
   .rooms-title {
     width: 100%;
     min-width: auto;
-    padding: 20px;
+    padding: 15px;
+  }
+  
+  .rooms-title h2 {
+    font-size: 1.6rem;
   }
 
   .rooms-header .search-container {
@@ -406,33 +464,230 @@
     width: 100%;
     max-width: none;
   }
+  
+  .lobby-controls {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .search-container {
+    width: 100%;
+    max-width: none;
+  }
+  
+  .filters {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  
+  .filter-dropdown {
+    flex: 1;
+    min-width: 150px;
+  }
+  
+  .rooms-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  
+  .lobby-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .btn-new-room,
+  .btn-play {
+    width: 100%;
+    justify-content: center;
+    padding: 12px 24px;
+    font-size: 1rem;
+  }
 }
 
+/* Mobile Landscape (480px - 600px) */
 @media (max-width: 600px) {
+  .lobby-header {
+    padding: 10px 12px;
+    gap: 12px;
+  }
+  
+  .lobby-logo {
+    font-size: 1.8rem;
+  }
+  
+  .lobby-avatar {
+    width: 45px;
+    height: 45px;
+    font-size: 2.2rem;
+  }
+  
+  .username {
+    font-size: 0.85rem;
+    padding: 4px 6px;
+  }
+  
+  .back-btn {
+    font-size: 1.2rem;
+    padding: 6px 12px;
+  }
+
   .lobby-main {
-    padding: 15px;
+    padding: 10px 12px;
+    max-height: 85vh;
+    margin: 3px auto;
+  }
+  
+  .rooms-header {
+    padding: 12px 10px;
+    margin-top: -10px;
+  }
+
+  .rooms-title {
+    padding: 12px;
+  }
+  
+  .rooms-title h2 {
+    font-size: 1.4rem;
   }
 
   .lobby-controls {
-    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
   }
 
-  .search-container {
-    width: 100%;
+  .search-input {
+    padding: 10px 35px 10px 12px;
+    font-size: 0.95rem;
   }
-
+  
   .filters {
-    width: 100%;
     flex-direction: column;
+    gap: 10px;
   }
 
   .filter-dropdown {
     width: 100%;
     justify-content: space-between;
+    padding: 10px 16px;
   }
 
   .rooms-grid {
     grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  .lobby-actions {
+    padding: 15px 0;
+  }
+  
+  .btn-new-room,
+  .btn-play {
+    padding: 12px 20px;
+    font-size: 0.95rem;
+  }
+  
+  .btn-icon {
+    font-size: 1.3rem;
+  }
+}
+
+/* Mobile Portrait (< 480px) */
+@media (max-width: 480px) {
+  .lobby-header {
+    padding: 8px 10px;
+  }
+  
+  .lobby-logo {
+    font-size: 1.5rem;
+    letter-spacing: 1px;
+  }
+  
+  .lobby-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 2rem;
+  }
+  
+  .username {
+    font-size: 0.8rem;
+    padding: 3px 5px;
+  }
+  
+  .back-btn {
+    font-size: 1rem;
+    padding: 5px 10px;
+  }
+
+  .lobby-main {
+    padding: 8px 10px;
+    max-height: 90vh;
+    border-radius: 15px;
+  }
+  
+  .rooms-header {
+    padding: 10px 8px;
+    margin-top: -8px;
+  }
+
+  .rooms-title {
+    padding: 10px;
+  }
+  
+  .rooms-title h2 {
+    font-size: 1.2rem;
+  }
+
+  .search-input {
+    padding: 8px 30px 8px 10px;
+    font-size: 0.9rem;
+  }
+  
+  .search-icon {
+    right: 12px;
+    font-size: 1rem;
+  }
+  
+  .filter-dropdown {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+  
+  .rooms-grid {
+    gap: 8px;
+  }
+  
+  .btn-new-room,
+  .btn-play {
+    padding: 10px 16px;
+    font-size: 0.9rem;
+  }
+  
+  .btn-icon {
+    font-size: 1.2rem;
+  }
+}
+
+/* Very Small Mobile (< 400px) */
+@media (max-width: 400px) {
+  .lobby-logo {
+    font-size: 1.3rem;
+  }
+  
+  .lobby-main {
+    padding: 6px 8px;
+  }
+  
+  .rooms-title h2 {
+    font-size: 1.1rem;
+  }
+  
+  .search-input {
+    font-size: 0.85rem;
+  }
+  
+  .filter-dropdown {
+    font-size: 0.85rem;
   }
 }
 

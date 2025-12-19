@@ -237,3 +237,57 @@ int protocol_handle_register(server_t* server, int client_index, const message_t
     }
 }
 
+/**
+ * Xử lý LOGOUT
+ * - Nếu đang trong room -> leave room (giống disconnect nhưng không close socket)
+ * - Reset client state về LOGGED_OUT
+ */
+int protocol_handle_logout(server_t* server, int client_index, const message_t* msg) {
+    (void)msg;
+    if (!server || client_index < 0 || client_index >= MAX_CLIENTS) {
+        return -1;
+    }
+
+    client_t* client = &server->clients[client_index];
+    if (!client->active) return -1;
+
+    // Nếu đang ở trong phòng thì remove khỏi phòng và broadcast update
+    if (client->user_id > 0 &&
+        (client->state == CLIENT_STATE_IN_ROOM || client->state == CLIENT_STATE_IN_GAME)) {
+
+        room_t* room = server_find_room_by_user(server, client->user_id);
+        if (room) {
+            int leaving_user_id = client->user_id;
+            char leaving_username[32];
+            strncpy(leaving_username, client->username, sizeof(leaving_username) - 1);
+            leaving_username[sizeof(leaving_username) - 1] = '\0';
+
+            // Xóa player khỏi phòng
+            room_remove_player(room, leaving_user_id);
+
+            if (room->player_count == 0) {
+                // Xóa room khỏi server
+                for (int i = 0; i < MAX_ROOMS; i++) {
+                    if (server->rooms[i] == room) {
+                        server->rooms[i] = NULL;
+                        server->room_count--;
+                        break;
+                    }
+                }
+                room_destroy(room);
+                protocol_broadcast_room_list(server);
+            } else {
+                protocol_broadcast_room_players_update(server, room, 1, leaving_user_id, leaving_username, -1);
+            }
+        }
+    }
+
+    // Reset client state
+    client->user_id = -1;
+    client->username[0] = '\0';
+    client->state = CLIENT_STATE_LOGGED_OUT;
+
+    printf("Client %d logout thành công\n", client_index);
+    return 0;
+}
+

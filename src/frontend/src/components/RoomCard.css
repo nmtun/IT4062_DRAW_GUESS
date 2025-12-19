@@ -90,3 +90,127 @@
   font-size: 0.9rem;
 }
 
+/* Responsive Design */
+
+/* Tablet (768px - 968px) */
+@media (max-width: 968px) {
+  .room-card {
+    padding: 18px;
+    gap: 10px;
+  }
+  
+  .room-icon {
+    width: 55px;
+    height: 55px;
+    font-size: 1.8rem;
+  }
+  
+  .room-name {
+    font-size: 1.1rem;
+  }
+  
+  .room-details {
+    font-size: 0.85rem;
+    gap: 10px;
+  }
+  
+  .official-badge {
+    width: 22px;
+    height: 22px;
+    font-size: 0.85rem;
+    top: 8px;
+    right: 8px;
+  }
+}
+
+/* Mobile Landscape (600px - 768px) */
+@media (max-width: 768px) {
+  .room-card {
+    padding: 15px;
+    gap: 8px;
+  }
+  
+  .room-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 1.6rem;
+  }
+  
+  .room-name {
+    font-size: 1rem;
+    margin-bottom: 6px;
+  }
+  
+  .room-details {
+    font-size: 0.8rem;
+    gap: 8px;
+  }
+  
+  .detail-item .icon {
+    font-size: 0.9rem;
+  }
+}
+
+/* Mobile Portrait (< 600px) */
+@media (max-width: 600px) {
+  .room-card {
+    padding: 12px;
+    gap: 8px;
+  }
+  
+  .room-icon {
+    width: 45px;
+    height: 45px;
+    font-size: 1.4rem;
+  }
+  
+  .room-name {
+    font-size: 0.95rem;
+    margin-bottom: 6px;
+  }
+  
+  .room-details {
+    font-size: 0.75rem;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .detail-item {
+    gap: 3px;
+  }
+  
+  .detail-item .icon {
+    font-size: 0.85rem;
+  }
+  
+  .official-badge {
+    width: 20px;
+    height: 20px;
+    font-size: 0.8rem;
+    top: 6px;
+    right: 6px;
+  }
+}
+
+/* Very Small Mobile (< 400px) */
+@media (max-width: 400px) {
+  .room-card {
+    padding: 10px;
+  }
+  
+  .room-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+  
+  .room-name {
+    font-size: 0.9rem;
+  }
+  
+  .room-details {
+    font-size: 0.7rem;
+  }
+}
+

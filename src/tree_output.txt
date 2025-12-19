@@ -1,0 +1,117 @@
+.
+├── Makefile
+├── common
+│   └── protocol.h
+├── data
+│   └── words.txt
+├── database
+│   └── schema.sql
+├── docker-compose.yml
+├── frontend
+│   ├── README.md
+│   ├── dist
+│   │   ├── assets
+│   │   │   ├── background-CuybgC6O.jpeg
+│   │   │   ├── index-Ch8mvR7r.js
+│   │   │   └── index-DCIzBOHR.css
+│   │   ├── index.html
+│   │   └── vite.svg
+│   ├── eslint.config.js
+│   ├── index.html
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── public
+│   │   └── vite.svg
+│   ├── src
+│   │   ├── App.jsx
+│   │   ├── assets
+│   │   │   ├── avt
+│   │   │   │   ├── avt1.jpg
+│   │   │   │   ├── avt2.jpg
+│   │   │   │   ├── avt3.jpg
+│   │   │   │   ├── avt4.jpg
+│   │   │   │   ├── avt5.jpg
+│   │   │   │   ├── avt6.jpg
+│   │   │   │   ├── avt7.jpg
+│   │   │   │   └── avt8.jpg
+│   │   │   ├── background.jpeg
+│   │   │   └── react.svg
+│   │   ├── components
+│   │   │   ├── AvatarSelector.css
+│   │   │   ├── AvatarSelector.jsx
+│   │   │   ├── Canvas.css
+│   │   │   ├── Canvas.jsx
+│   │   │   ├── ChatPanel.css
+│   │   │   ├── ChatPanel.jsx
+│   │   │   ├── CreateRoomDialog.css
+│   │   │   ├── CreateRoomDialog.jsx
+│   │   │   ├── LoginForm.css
+│   │   │   ├── LoginForm.jsx
+│   │   │   ├── PlayerList.css
+│   │   │   ├── PlayerList.jsx
+│   │   │   ├── RegisterForm.css
+│   │   │   ├── RegisterForm.jsx
+│   │   │   ├── RoomCard.css
+│   │   │   └── RoomCard.jsx
+│   │   ├── hooks
+│   │   │   └── useAuth.js
+│   │   ├── main.jsx
+│   │   ├── pages
+│   │   │   ├── game-room
+│   │   │   │   ├── GameRoom.css
+│   │   │   │   └── GameRoom.jsx
+│   │   │   ├── lobby
+│   │   │   │   ├── Lobby.css
+│   │   │   │   └── Lobby.jsx
+│   │   │   └── login-register
+│   │   │       ├── LoginRegister.css
+│   │   │       └── LoginRegister.jsx
+│   │   ├── services
+│   │   │   └── Services.js
+│   │   └── utils
+│   │       ├── userStorage.js
+│   │       └── validation.js
+│   └── vite.config.js
+├── gateway
+│   ├── README.md
+│   ├── config.json
+│   ├── index.js
+│   ├── package-lock.json
+│   ├── package.json
+│   └── utils.js
+├── include
+│   ├── auth.h
+│   ├── database.h
+│   ├── drawing.h
+│   ├── game.h
+│   ├── protocol.h
+│   ├── room.h
+│   ├── server.h
+│   ├── sha256.h
+│   └── utils.h
+├── server
+│   ├── auth.c
+│   ├── database.c
+│   ├── drawing.c
+│   ├── game.c
+│   ├── main.c
+│   ├── protocol.c
+│   ├── protocol_auth.c
+│   ├── protocol_chat.c
+│   ├── protocol_core.c
+│   ├── protocol_drawing.c
+│   ├── protocol_game.c
+│   ├── protocol_room.c
+│   ├── room.c
+│   ├── server.c
+│   ├── sha256.c
+│   └── utils.c
+├── test
+│   ├── drawing_test.c
+│   ├── room_test.c
+│   ├── test_client.c
+│   ├── test_drawing.c
+│   └── test_room.c
+└── tree_output.txt
+
+23 directories, 92 files

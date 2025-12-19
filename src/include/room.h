@@ -26,9 +26,11 @@ typedef enum
 typedef struct
 {
     int room_id;
+    int db_room_id;                            // ID phòng trong database (0 nếu chưa tạo/persist)
     char room_name[ROOM_NAME_MAX_LENGTH];
     int owner_id;                             // User ID của người tạo phòng
     int players[MAX_PLAYERS_PER_ROOM];        // Mảng user IDs (bao gồm cả người chờ)
+    int db_player_ids[MAX_PLAYERS_PER_ROOM];  // room_players.id tương ứng từng slot players[]
     int player_count;                         // Tổng số người trong phòng
     int active_players[MAX_PLAYERS_PER_ROOM]; // Mảng đánh dấu người chơi đang active (1) hay đang chờ (0)
     int max_players;                          // Số người chơi tối đa

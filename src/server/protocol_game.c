@@ -1,0 +1,349 @@
+#include "../include/protocol.h"
+#include "../include/game.h"
+#include "../include/room.h"
+#include "../include/server.h"
+#include "../include/database.h"
+#include "../common/protocol.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <arpa/inet.h>
+#include <stdint.h>
+
+extern db_connection_t* db;
+
+// Payload formats (binary protocol):
+// - GAME_START: drawer_id(4) + word_length(1) + time_limit(2) + round_start_ms(8) + word(64) = 79 bytes
+// - CORRECT_GUESS: player_id(4) + word(64) + points(2) = 70 bytes
+// - WRONG_GUESS: player_id(4) + guess(64) = 68 bytes
+// - ROUND_END: word(64) + score_count(2) + pairs(user_id(4), score(4))...
+// - GAME_END: winner_id(4) + score_count(2) + pairs(user_id(4), score(4))...
+
+static void write_i32_be(uint8_t* p, int32_t v) {
+    uint32_t u = (uint32_t)v;
+    uint32_t be = htonl(u);
+    memcpy(p, &be, sizeof(be));
+}
+
+static void write_u16_be(uint8_t* p, uint16_t v) {
+    uint16_t be = htons(v);
+    memcpy(p, &be, sizeof(be));
+}
+
+static void write_u64_be(uint8_t* p, uint64_t v) {
+    // htonll portable
+    uint32_t hi = (uint32_t)(v >> 32);
+    uint32_t lo = (uint32_t)(v & 0xFFFFFFFFULL);
+    uint32_t hi_be = htonl(hi);
+    uint32_t lo_be = htonl(lo);
+    memcpy(p, &hi_be, 4);
+    memcpy(p + 4, &lo_be, 4);
+}
+
+static void write_fixed_string(uint8_t* p, size_t n, const char* s) {
+    memset(p, 0, n);
+    if (!s) return;
+    strncpy((char*)p, s, n - 1);
+    ((char*)p)[n - 1] = '\0';
+}
+
+static int find_client_index_by_user(server_t* server, int user_id) {
+    if (!server || user_id <= 0) return -1;
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        if (server->clients[i].active && server->clients[i].user_id == user_id) return i;
+    }
+    return -1;
+}
+
+static int room_player_db_id(room_t* room, int user_id) {
+    if (!room) return 0;
+    for (int i = 0; i < room->player_count; i++) {
+        if (room->players[i] == user_id) return room->db_player_ids[i];
+    }
+    return 0;
+}
+
+static int broadcast_game_start(server_t* server, room_t* room) {
+    if (!server || !room || !room->game) return -1;
+
+    game_state_t* game = room->game;
+    uint8_t payload[79];
+    memset(payload, 0, sizeof(payload));
+    write_i32_be(payload + 0, (int32_t)game->drawer_id);
+    payload[4] = (uint8_t)game->word_length;
+    write_u16_be(payload + 5, (uint16_t)game->time_limit);
+    // round_start_time is seconds in game_state -> convert to ms
+    uint64_t start_ms = (uint64_t)game->round_start_time * 1000ULL;
+    write_u64_be(payload + 7, start_ms);
+
+    // Send to each client in room; drawer gets the word, others empty
+    int sent = 0;
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        client_t* c = &server->clients[i];
+        if (!c->active || c->user_id <= 0) continue;
+        if (!room_has_player(room, c->user_id)) continue;
+
+        if (c->user_id == game->drawer_id) {
+            write_fixed_string(payload + 15, 64, game->current_word);
+        } else {
+            write_fixed_string(payload + 15, 64, "");
+        }
+
+        if (protocol_send_message(c->fd, MSG_GAME_START, payload, (uint16_t)sizeof(payload)) == 0) {
+            sent++;
+        }
+    }
+    return sent;
+}
+
+static int broadcast_round_end(server_t* server, room_t* room, const char* word) {
+    if (!server || !room || !room->game) return -1;
+    game_state_t* game = room->game;
+
+    // header + score pairs
+    const uint16_t score_count = (uint16_t)game->score_count;
+    const size_t payload_size = 64 + 2 + (size_t)score_count * (sizeof(int32_t) + sizeof(int32_t));
+    if (payload_size > BUFFER_SIZE - 3) return -1;
+
+    uint8_t payload[BUFFER_SIZE];
+    memset(payload, 0, payload_size);
+    write_fixed_string(payload + 0, 64, word ? word : "");
+    write_u16_be(payload + 64, score_count);
+
+    uint8_t* p = payload + 66;
+    for (int i = 0; i < game->score_count; i++) {
+        write_i32_be(p, (int32_t)game->scores[i].user_id);
+        p += 4;
+        write_i32_be(p, (int32_t)game->scores[i].score);
+        p += 4;
+    }
+
+    return server_broadcast_to_room(server, room->room_id, MSG_ROUND_END, payload, (uint16_t)payload_size, -1);
+}
+
+static int broadcast_game_end(server_t* server, room_t* room) {
+    if (!server || !room || !room->game) return -1;
+    game_state_t* game = room->game;
+
+    // compute winner (same logic as game.c, duplicated to avoid exposing helper)
+    int winner_id = -1;
+    int best = -2147483647;
+    for (int i = 0; i < game->score_count; i++) {
+        if (game->scores[i].score > best) {
+            best = game->scores[i].score;
+            winner_id = game->scores[i].user_id;
+        }
+    }
+
+    const uint16_t score_count = (uint16_t)game->score_count;
+    const size_t payload_size = 4 + 2 + (size_t)score_count * (sizeof(int32_t) + sizeof(int32_t));
+    if (payload_size > BUFFER_SIZE - 3) return -1;
+
+    uint8_t payload[BUFFER_SIZE];
+    memset(payload, 0, payload_size);
+    write_i32_be(payload + 0, (int32_t)winner_id);
+    write_u16_be(payload + 4, score_count);
+
+    uint8_t* p = payload + 6;
+    for (int i = 0; i < game->score_count; i++) {
+        write_i32_be(p, (int32_t)game->scores[i].user_id);
+        p += 4;
+        write_i32_be(p, (int32_t)game->scores[i].score);
+        p += 4;
+    }
+
+    return server_broadcast_to_room(server, room->room_id, MSG_GAME_END, payload, (uint16_t)payload_size, -1);
+}
+
+int protocol_handle_start_game(server_t* server, int client_index, const message_t* msg) {
+    (void)msg;
+    if (!server || client_index < 0 || client_index >= MAX_CLIENTS) return -1;
+
+    client_t* client = &server->clients[client_index];
+    if (!client->active || client->user_id <= 0) return -1;
+    if (client->state != CLIENT_STATE_IN_ROOM) {
+        // only allow start from waiting room state
+        return -1;
+    }
+
+    room_t* room = server_find_room_by_user(server, client->user_id);
+    if (!room) return -1;
+    if (!room_is_owner(room, client->user_id)) {
+        return -1;
+    }
+
+    if (!room_start_game(room)) {
+        return -1;
+    }
+
+    // mark all clients in room as IN_GAME
+    for (int i = 0; i < room->player_count; i++) {
+        int uid = room->players[i];
+        int cidx = find_client_index_by_user(server, uid);
+        if (cidx >= 0) {
+            server->clients[cidx].state = CLIENT_STATE_IN_GAME;
+        }
+    }
+
+    if (!room->game) return -1;
+    if (!game_start_round(room->game)) return -1;
+
+    // Create db game_round for first round (best-effort)
+    if (db && room->db_room_id > 0) {
+        int drawer_pid = room_player_db_id(room, room->game->drawer_id);
+        if (drawer_pid > 0) {
+            room->game->db_round_id = db_create_game_round(db, room->db_room_id, room->game->current_round, room->game->drawer_index, drawer_pid, room->game->current_word);
+        }
+        // mark room in progress
+        char rid_buf[32];
+        snprintf(rid_buf, sizeof(rid_buf), "%d", room->db_room_id);
+        MYSQL_RES* r = db_execute_query(db, "UPDATE rooms SET status='in_progress' WHERE id = ?", rid_buf);
+        if (r) mysql_free_result(r);
+    }
+
+    broadcast_game_start(server, room);
+    return 0;
+}
+
+int protocol_handle_guess_word(server_t* server, int client_index, const message_t* msg) {
+    if (!server || client_index < 0 || client_index >= MAX_CLIENTS || !msg) return -1;
+    client_t* client = &server->clients[client_index];
+    if (!client->active || client->user_id <= 0) return -1;
+    if (client->state != CLIENT_STATE_IN_GAME) return -1;
+
+    room_t* room = server_find_room_by_user(server, client->user_id);
+    if (!room || !room->game) return -1;
+
+    // Parse guess word (payload: word[64])
+    char guess[MAX_WORD_LEN];
+    memset(guess, 0, sizeof(guess));
+    if (msg->payload && msg->length > 0) {
+        size_t n = msg->length;
+        if (n >= MAX_WORD_LEN) n = MAX_WORD_LEN - 1;
+        memcpy(guess, msg->payload, n);
+        guess[n] = '\0';
+        // strip null padding
+        for (int i = 0; i < MAX_WORD_LEN; i++) {
+            if (guess[i] == '\0') break;
+        }
+    }
+
+    if (guess[0] == '\0') return -1;
+
+    return protocol_process_guess(server, client_index, room, guess);
+}
+
+int protocol_process_guess(server_t* server, int client_index, room_t* room, const char* guess) {
+    if (!server || !room || !room->game || !guess) return -1;
+    client_t* client = &server->clients[client_index];
+    if (!client->active || client->user_id <= 0) return -1;
+
+    // Keep the word before game_end_round clears it
+    char current_word[MAX_WORD_LEN];
+    memset(current_word, 0, sizeof(current_word));
+    strncpy(current_word, room->game->current_word, MAX_WORD_LEN - 1);
+
+    const bool correct = game_handle_guess(room->game, client->user_id, guess);
+
+    // Persist guess (best-effort)
+    if (db && room->game->db_round_id > 0 && room->db_room_id > 0) {
+        int pid = room_player_db_id(room, client->user_id);
+        if (pid > 0) {
+            db_save_guess(db, room->game->db_round_id, pid, guess, correct ? 1 : 0);
+        }
+    }
+
+    if (!correct) {
+        uint8_t wp[68];
+        memset(wp, 0, sizeof(wp));
+        write_i32_be(wp + 0, (int32_t)client->user_id);
+        write_fixed_string(wp + 4, 64, guess);
+        server_broadcast_to_room(server, room->room_id, MSG_WRONG_GUESS, wp, (uint16_t)sizeof(wp), -1);
+        return 0;
+    }
+
+    // correct guess broadcast
+    uint8_t cp[70];
+    memset(cp, 0, sizeof(cp));
+    write_i32_be(cp + 0, (int32_t)client->user_id);
+    write_fixed_string(cp + 4, 64, current_word);
+    write_u16_be(cp + 68, (uint16_t)GAME_POINTS_GUESSER);
+    server_broadcast_to_room(server, room->room_id, MSG_CORRECT_GUESS, cp, (uint16_t)sizeof(cp), -1);
+
+    // Persist score details (best-effort)
+    if (db && room->game->db_round_id > 0 && room->db_room_id > 0) {
+        int guesser_pid = room_player_db_id(room, client->user_id);
+        int drawer_pid = room_player_db_id(room, room->game->drawer_id);
+        if (guesser_pid > 0) db_save_score_detail(db, room->game->db_round_id, guesser_pid, GAME_POINTS_GUESSER);
+        if (drawer_pid > 0) db_save_score_detail(db, room->game->db_round_id, drawer_pid, GAME_POINTS_DRAWER);
+    }
+
+    // round end
+    broadcast_round_end(server, room, current_word);
+
+    // next round or game end?
+    if (room->game->game_ended) {
+        // Update DB final scores + user stats (best-effort)
+        if (db && room->db_room_id > 0) {
+            // compute winner
+            int winner_id = -1;
+            int best = -2147483647;
+            for (int i = 0; i < room->game->score_count; i++) {
+                if (room->game->scores[i].score > best) {
+                    best = room->game->scores[i].score;
+                    winner_id = room->game->scores[i].user_id;
+                }
+            }
+            for (int i = 0; i < room->game->score_count; i++) {
+                int uid = room->game->scores[i].user_id;
+                int sc = room->game->scores[i].score;
+                int pid = room_player_db_id(room, uid);
+                if (pid > 0) db_update_room_player_score(db, pid, sc);
+                db_update_user_stats(db, uid, sc, (uid == winner_id) ? 1 : 0);
+            }
+            // mark room finished
+            char rid_buf[32];
+            snprintf(rid_buf, sizeof(rid_buf), "%d", room->db_room_id);
+            MYSQL_RES* r = db_execute_query(db, "UPDATE rooms SET status='finished' WHERE id = ?", rid_buf);
+            if (r) mysql_free_result(r);
+        }
+
+        broadcast_game_end(server, room);
+        room_end_game(room);
+        return 0;
+    }
+
+    // start next round immediately
+    if (game_start_round(room->game)) {
+        // create db round if possible
+        if (db && room->db_room_id > 0) {
+            int drawer_pid = room_player_db_id(room, room->game->drawer_id);
+            if (drawer_pid > 0) {
+                room->game->db_round_id = db_create_game_round(db, room->db_room_id, room->game->current_round, room->game->drawer_index, drawer_pid, room->game->current_word);
+            }
+        }
+        broadcast_game_start(server, room);
+    }
+    return 0;
+}
+
+// Called by server tick when timeout happens
+int protocol_handle_round_timeout(server_t* server, room_t* room, const char* word_before_clear) {
+    if (!server || !room || !room->game) return -1;
+
+    broadcast_round_end(server, room, word_before_clear);
+
+    if (room->game->game_ended) {
+        broadcast_game_end(server, room);
+        room_end_game(room);
+        return 0;
+    }
+
+    if (game_start_round(room->game)) {
+        broadcast_game_start(server, room);
+    }
+    return 0;
+}
+
+
+

@@ -1,9 +1,13 @@
 #include "../include/room.h"
 #include "../include/server.h"
+#include "../include/game.h"
+#include "../include/database.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+extern db_connection_t* db;
 
 // Room ID tự động tăng
 static int next_room_id = 1;
@@ -40,6 +44,7 @@ room_t *room_create(const char *room_name, int owner_id, int max_players, int ro
 
     // Khởi tạo phòng
     room->room_id = next_room_id++;
+    room->db_room_id = 0;
     strncpy(room->room_name, room_name, ROOM_NAME_MAX_LENGTH - 1);
     room->room_name[ROOM_NAME_MAX_LENGTH - 1] = '\0';
 
@@ -55,6 +60,7 @@ room_t *room_create(const char *room_name, int owner_id, int max_players, int ro
     for (int i = 0; i < MAX_PLAYERS_PER_ROOM; i++)
     {
         room->players[i] = 0;
+        room->db_player_ids[i] = 0;
         room->active_players[i] = 0;
     }
 
@@ -62,6 +68,20 @@ room_t *room_create(const char *room_name, int owner_id, int max_players, int ro
     room->players[0] = owner_id;
     room->active_players[0] = 1; // Owner active ngay
     room->player_count = 1;
+
+    // Persist room + owner player (best-effort)
+    if (db) {
+        char code[16];
+        snprintf(code, sizeof(code), "R%d", room->room_id);
+        int db_room_id = db_create_room(db, code, owner_id, max_players, rounds);
+        if (db_room_id > 0) {
+            room->db_room_id = db_room_id;
+            int db_player_id = db_add_room_player(db, db_room_id, owner_id, 1);
+            if (db_player_id > 0) {
+                room->db_player_ids[0] = db_player_id;
+            }
+        }
+    }
 
     printf("Phòng '%s' (ID: %d) đã được tạo bởi user %d\n",
            room->room_name, room->room_id, owner_id);
@@ -82,8 +102,7 @@ void room_destroy(room_t *room)
     // Free game state nếu có
     if (room->game)
     {
-        // TODO: Implement game_destroy() khi module game sẵn sàng
-        // game_destroy(room->game);
+        game_destroy(room->game);
         room->game = NULL;
     }
 
@@ -120,6 +139,10 @@ bool room_add_player(room_t *room, int user_id)
     if (room->state == ROOM_PLAYING)
     {
         room->active_players[room->player_count] = 0; // Chờ đến round sau
+        if (db && room->db_room_id > 0) {
+            int db_player_id = db_add_room_player(db, room->db_room_id, user_id, room->player_count + 1);
+            if (db_player_id > 0) room->db_player_ids[room->player_count] = db_player_id;
+        }
         room->player_count++;
         printf("User %d đã tham gia phòng '%s' (ID: %d) và sẽ chơi từ round tiếp theo. Số người: %d/%d\n",
                user_id, room->room_name, room->room_id,
@@ -129,6 +152,10 @@ bool room_add_player(room_t *room, int user_id)
     {
         // Phòng chưa chơi, active ngay
         room->active_players[room->player_count] = 1;
+        if (db && room->db_room_id > 0) {
+            int db_player_id = db_add_room_player(db, room->db_room_id, user_id, room->player_count + 1);
+            if (db_player_id > 0) room->db_player_ids[room->player_count] = db_player_id;
+        }
         room->player_count++;
         printf("User %d đã tham gia phòng '%s' (ID: %d). Số người: %d/%d\n",
                user_id, room->room_name, room->room_id,
@@ -168,9 +195,11 @@ bool room_remove_player(room_t *room, int user_id)
     {
         room->players[i] = room->players[i + 1];
         room->active_players[i] = room->active_players[i + 1];
+        room->db_player_ids[i] = room->db_player_ids[i + 1];
     }
     room->players[room->player_count - 1] = 0;
     room->active_players[room->player_count - 1] = 0;
+    room->db_player_ids[room->player_count - 1] = 0;
     room->player_count--;
 
     printf("User %d đã rời phòng '%s' (ID: %d). Số người còn lại: %d\n",
@@ -187,8 +216,13 @@ bool room_remove_player(room_t *room, int user_id)
     // Nếu đang chơi game, cần xử lý logic game
     if (room->state == ROOM_PLAYING)
     {
-        // TODO: Implement game pause/end logic
-        printf("Cảnh báo: Player rời phòng trong lúc đang chơi\n");
+        // Nếu còn < 2 người chơi thì end game ngay để tránh treo state
+        if (room->player_count < 2) {
+            room_end_game(room);
+            printf("Game kết thúc do không đủ người chơi\n");
+        } else {
+            printf("Player rời phòng trong lúc đang chơi (server sẽ xử lý round tiếp theo nếu cần)\n");
+        }
     }
 
     return true;
@@ -292,11 +326,16 @@ bool room_start_game(room_t *room)
     printf("Game trong phòng '%s' (ID: %d) đã bắt đầu với %d người chơi\n",
            room->room_name, room->room_id, room->player_count);
 
-    // TODO: Khởi tạo game_state_t khi game module ready
-    // room->game = game_init(room, room->total_rounds, 60);
-    // if (room->game) {
-    //     game_start_round(room->game, server);
-    // }
+    // Phase 5 - #18: Khởi tạo game_state_t (round sẽ được start ở handler protocol - mục 19)
+    if (!room->game) {
+        // yêu cầu mới: mỗi lượt vẽ 30s
+        room->game = game_init(room, room->total_rounds, 30);
+        if (!room->game) {
+            fprintf(stderr, "Không thể khởi tạo game state\n");
+            room->state = ROOM_WAITING;
+            return false;
+        }
+    }
 
     return true;
 }
@@ -315,8 +354,7 @@ void room_end_game(room_t *room)
     // Free game state
     if (room->game)
     {
-        // TODO: Implement game_destroy() when game module is ready
-        // game_destroy(room->game);
+        game_destroy(room->game);
         room->game = NULL;
     }
 

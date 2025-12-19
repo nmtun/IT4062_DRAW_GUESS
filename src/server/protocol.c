@@ -10,6 +10,10 @@ extern int protocol_handle_create_room(server_t* server, int client_index, const
 extern int protocol_handle_join_room(server_t* server, int client_index, const message_t* msg);
 extern int protocol_handle_leave_room(server_t* server, int client_index, const message_t* msg);
 extern int protocol_handle_draw_data(server_t* server, int client_index, const message_t* msg);
+extern int protocol_handle_start_game(server_t* server, int client_index, const message_t* msg);
+extern int protocol_handle_guess_word(server_t* server, int client_index, const message_t* msg);
+extern int protocol_handle_logout(server_t* server, int client_index, const message_t* msg);
+extern int protocol_handle_chat_message(server_t* server, int client_index, const message_t* msg);
 
 /**
  * Xử lý message nhận được từ client
@@ -27,9 +31,7 @@ int protocol_handle_message(server_t* server, int client_index, const message_t*
             return protocol_handle_register(server, client_index, msg);
             
         case MSG_LOGOUT:
-            // TODO: Implement logout handler
-            printf("Nhận LOGOUT từ client %d\n", client_index);
-            return 0;
+            return protocol_handle_logout(server, client_index, msg);
 
         case MSG_ROOM_LIST_REQUEST:
             return protocol_handle_room_list_request(server, client_index, msg);
@@ -45,6 +47,15 @@ int protocol_handle_message(server_t* server, int client_index, const message_t*
 
         case MSG_DRAW_DATA:
             return protocol_handle_draw_data(server, client_index, msg);
+
+        case MSG_START_GAME:
+            return protocol_handle_start_game(server, client_index, msg);
+
+        case MSG_GUESS_WORD:
+            return protocol_handle_guess_word(server, client_index, msg);
+
+        case MSG_CHAT_MESSAGE:
+            return protocol_handle_chat_message(server, client_index, msg);
             
         default:
             fprintf(stderr, "Unknown message type: 0x%02X từ client %d\n", 

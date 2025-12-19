@@ -1,6 +1,7 @@
 #include "../include/server.h"
 #include "../include/protocol.h"
 #include "../include/room.h"
+#include "../include/game.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -241,6 +242,16 @@ void server_handle_disconnect(server_t *server, int client_index) {
         if (room) {
             printf("Client %d (user_id=%d) đang disconnect, xóa khỏi phòng '%s' (ID: %d)\n",
                    client_index, client->user_id, room->room_name, room->room_id);
+
+            // Nếu đang chơi và người rời là drawer -> end round ngay để game không bị kẹt
+            int was_playing = (room->state == ROOM_PLAYING && room->game != NULL);
+            int was_drawer = (was_playing && room->game->drawer_id == client->user_id);
+            char word_before[64];
+            word_before[0] = '\0';
+            if (was_playing) {
+                strncpy(word_before, room->game->current_word, sizeof(word_before) - 1);
+                word_before[sizeof(word_before) - 1] = '\0';
+            }
             
             // Xóa player khỏi phòng
             room_remove_player(room, client->user_id);
@@ -279,6 +290,11 @@ void server_handle_disconnect(server_t *server, int client_index) {
                                                       leaving_user_id, leaving_username, 
                                                       -1);
             }
+
+            // Xử lý drawer rời phòng trong game (sau khi đã broadcast danh sách players)
+            if (was_drawer && room->game && word_before[0] != '\0') {
+                protocol_handle_round_timeout(server, room, word_before);
+            }
         }
     }
 
@@ -307,7 +323,11 @@ void server_event_loop(server_t *server) {
         }
         
         // Sử dụng select() để chờ sự kiện
-        int activity = select(server->max_fd + 1, &server->read_fds, NULL, NULL, NULL);
+        // Có timeout để tick game timeout (Phase 5 - #19)
+        struct timeval tv;
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
+        int activity = select(server->max_fd + 1, &server->read_fds, NULL, NULL, &tv);
         
         if (activity < 0) {
             perror("select() failed");
@@ -323,6 +343,24 @@ void server_event_loop(server_t *server) {
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (server->clients[i].active && FD_ISSET(server->clients[i].fd, &server->read_fds)) {
                 server_handle_client_data(server, i);
+            }
+        }
+
+        // Tick: kiểm tra timeout cho tất cả phòng đang chơi
+        for (int r = 0; r < MAX_ROOMS; r++) {
+            room_t* room = server->rooms[r];
+            if (!room || room->state != ROOM_PLAYING || !room->game) continue;
+
+            // giữ lại word trước khi game_end_round reset state
+            char word_before[64];
+            memset(word_before, 0, sizeof(word_before));
+            strncpy(word_before, room->game->current_word, sizeof(word_before) - 1);
+
+            if (word_before[0] == '\0') continue;
+
+            if (game_check_timeout(room->game)) {
+                // broadcast round_end + next round/game end
+                protocol_handle_round_timeout(server, room, word_before);
             }
         }
     }

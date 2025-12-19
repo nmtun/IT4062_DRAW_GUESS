@@ -1,9 +1,9 @@
 #include "../include/auth.h"
+#include "../include/sha256.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <openssl/sha.h>
 
 
 // Kiểm tra tính hợp lệ của username
@@ -81,29 +81,7 @@ int auth_hash_password(const char* password, char* hash_output) {
         return -1;
     }
 
-    unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256_CTX sha256;
-    
-    if (!SHA256_Init(&sha256)) {
-        fprintf(stderr, "Lỗi: Không thể khởi tạo SHA256\n");
-        return -1;
-    }
-    
-    if (!SHA256_Update(&sha256, password, strlen(password))) {
-        fprintf(stderr, "Lỗi: Không thể hash password\n");
-        return -1;
-    }
-    
-    if (!SHA256_Final(hash, &sha256)) {
-        fprintf(stderr, "Lỗi: Không thể finalize hash\n");
-        return -1;
-    }
-
-    // Convert hash to hex string
-    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
-        sprintf(hash_output + (i * 2), "%02x", hash[i]);
-    }
-    hash_output[64] = '\0';
+    sha256_hex((const uint8_t*)password, strlen(password), hash_output);
 
     return 0;
 }

@@ -146,3 +146,160 @@
   background: #555;
 }
 
+/* Responsive Design */
+
+/* Tablet (768px - 968px) */
+@media (max-width: 968px) {
+  .player-list {
+    padding: 15px;
+    height: 85%;
+  }
+  
+  .player-list-header {
+    margin-bottom: 15px;
+    padding-bottom: 12px;
+  }
+  
+  .player-list-header h3 {
+    font-size: 1.3rem;
+  }
+  
+  .players-container {
+    gap: 10px;
+  }
+  
+  .player-item {
+    padding: 10px;
+    gap: 10px;
+  }
+  
+  .player-avatar {
+    width: 45px;
+    height: 45px;
+    font-size: 1.6rem;
+  }
+  
+  .drawing-badge {
+    width: 20px;
+    height: 20px;
+    font-size: 0.8rem;
+  }
+  
+  .player-name {
+    font-size: 0.95rem;
+  }
+  
+  .player-score {
+    font-size: 0.85rem;
+  }
+}
+
+/* Mobile Landscape (600px - 768px) */
+@media (max-width: 768px) {
+  .player-list {
+    padding: 12px;
+    height: 82%;
+  }
+  
+  .player-list-header h3 {
+    font-size: 1.2rem;
+  }
+  
+  .player-item {
+    padding: 8px;
+    gap: 8px;
+  }
+  
+  .player-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 1.4rem;
+  }
+  
+  .player-name {
+    font-size: 0.9rem;
+  }
+  
+  .player-score {
+    font-size: 0.8rem;
+  }
+}
+
+/* Mobile Portrait (< 600px) */
+@media (max-width: 600px) {
+  .player-list {
+    padding: 10px;
+    height: 80%;
+  }
+  
+  .player-list-header {
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+  }
+  
+  .player-list-header h3 {
+    font-size: 1.1rem;
+  }
+  
+  .players-container {
+    gap: 8px;
+  }
+  
+  .player-item {
+    padding: 8px 6px;
+    gap: 8px;
+  }
+  
+  .player-avatar {
+    width: 35px;
+    height: 35px;
+    font-size: 1.2rem;
+  }
+  
+  .drawing-badge {
+    width: 18px;
+    height: 18px;
+    font-size: 0.7rem;
+    top: -3px;
+    right: -3px;
+  }
+  
+  .player-name {
+    font-size: 0.85rem;
+    margin-bottom: 2px;
+  }
+  
+  .player-score {
+    font-size: 0.75rem;
+  }
+  
+  .owner-badge {
+    font-size: 0.7rem;
+  }
+}
+
+/* Very Small Mobile (< 400px) */
+@media (max-width: 400px) {
+  .player-list {
+    padding: 8px;
+  }
+  
+  .player-list-header h3 {
+    font-size: 1rem;
+  }
+  
+  .player-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 1.1rem;
+  }
+  
+  .player-name {
+    font-size: 0.8rem;
+  }
+  
+  .player-score {
+    font-size: 0.7rem;
+  }
+}
+

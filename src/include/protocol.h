@@ -135,5 +135,15 @@ int protocol_broadcast_room_players_update(server_t* server, room_t* room,
  */
 int protocol_broadcast_room_list(server_t* server);
 
+// ============================
+// Game protocol handlers (Phase 5 - #19)
+// ============================
+int protocol_handle_start_game(server_t* server, int client_index, const message_t* msg);
+int protocol_handle_guess_word(server_t* server, int client_index, const message_t* msg);
+int protocol_handle_round_timeout(server_t* server, room_t* room, const char* word_before_clear);
+int protocol_handle_logout(server_t* server, int client_index, const message_t* msg);
+int protocol_handle_chat_message(server_t* server, int client_index, const message_t* msg);
+int protocol_process_guess(server_t* server, int client_index, room_t* room, const char* guess);
+
 #endif // PROTOCOL_HANDLER_H
 

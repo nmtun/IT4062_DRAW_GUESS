@@ -83,5 +83,8 @@ CREATE TABLE chat_messages (
 CREATE TABLE words (
     id INT AUTO_INCREMENT PRIMARY KEY,
     word VARCHAR(100) NOT NULL UNIQUE,
-    category VARCHAR(50) NOT NULL
+    difficulty ENUM('easy', 'medium', 'hard') NOT NULL DEFAULT 'medium',
+    category VARCHAR(50) NOT NULL DEFAULT 'general',
+    times_used INT NOT NULL DEFAULT 0,
+    INDEX idx_words_difficulty (difficulty)
 );

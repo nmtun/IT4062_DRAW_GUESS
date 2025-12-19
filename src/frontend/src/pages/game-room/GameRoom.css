@@ -188,74 +188,272 @@
   text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
 }
 
-/* Responsive */
-@media (max-width: 1400px) {
+/* Responsive Design */
+
+/* Large Desktop (1400px - 1600px) */
+@media (max-width: 1600px) {
   .game-layout {
     grid-template-columns: 250px 1fr 280px;
   }
 }
 
-@media (max-width: 1200px) {
+/* Desktop (1200px - 1400px) */
+@media (max-width: 1400px) {
   .game-layout {
-    grid-template-columns: 220px 1fr 250px;
+    grid-template-columns: 230px 1fr 260px;
+  }
+  
+  .game-logo {
+    font-size: 1.8rem;
   }
 }
 
+/* Tablet (968px - 1200px) */
+@media (max-width: 1200px) {
+  .game-layout {
+    grid-template-columns: 200px 1fr 240px;
+    gap: 15px;
+  }
+  
+  .game-header {
+    padding: 10px 20px;
+  }
+  
+  .timer-text {
+    font-size: 1rem;
+  }
+  
+  .timer-icon {
+    font-size: 1.5rem;
+  }
+}
+
+/* Tablet Portrait (768px - 968px) */
 @media (max-width: 968px) {
   .game-layout {
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr auto;
+    gap: 15px;
   }
 
   .game-sidebar.left {
     order: 2;
-    max-height: 200px;
+    max-height: 250px;
+    height: auto;
   }
 
   .game-center {
     order: 1;
+    min-height: 400px;
   }
 
   .game-sidebar.right {
     order: 3;
-    max-height: 300px;
+    max-height: 350px;
+    height: auto;
   }
 
   .game-header {
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: 10px;
+    padding: 10px 15px;
+  }
+
+  .header-left {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  .header-center {
+    flex: 1 1 auto;
+    min-width: 120px;
+  }
+
+  .header-right {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  .game-info {
+    justify-content: center;
+  }
+  
+  .game-main {
+    padding: 15px;
+    height: calc(100vh - 100px);
+  }
+  
+  .status-banner h2 {
+    font-size: 1.3rem;
+  }
+  
+  .status-banner p {
+    font-size: 0.95rem;
+  }
+}
+
+/* Mobile Landscape (600px - 768px) */
+@media (max-width: 768px) {
+  .game-main {
+    padding: 10px;
+    height: calc(100vh - 90px);
+  }
+
+  .game-layout {
+    gap: 12px;
+  }
+  
+  .game-header {
+    padding: 8px 10px;
+  }
+  
+  .back-btn {
+    font-size: 0.9rem;
+    padding: 8px 16px;
+  }
+  
+  .game-logo {
+    font-size: 1.5rem;
+  }
+  
+  .timer {
+    padding: 6px 12px;
+  }
+  
+  .timer-text {
+    font-size: 0.95rem;
+  }
+  
+  .timer-icon {
+    font-size: 1.3rem;
+  }
+  
+  .game-sidebar.left {
+    max-height: 200px;
+  }
+  
+  .game-sidebar.right {
+    max-height: 300px;
+  }
+  
+  .game-center {
+    min-height: 350px;
+  }
+}
+
+/* Mobile Portrait (< 600px) */
+@media (max-width: 600px) {
+  .game-main {
+    padding: 8px;
+    height: calc(100vh - 80px);
+  }
+
+  .game-layout {
+    gap: 10px;
+  }
+  
+  .game-header {
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
   }
 
   .header-left,
   .header-right,
   .header-center {
     width: 100%;
-  }
-
-  .game-info {
     justify-content: center;
   }
-}
-
-@media (max-width: 600px) {
-  .game-main {
-    padding: 10px;
+  
+  .header-left {
+    order: 1;
+  }
+  
+  .header-center {
+    order: 2;
+  }
+  
+  .header-right {
+    order: 3;
   }
 
-  .game-layout {
-    gap: 10px;
+  .back-btn {
+    font-size: 0.85rem;
+    padding: 6px 12px;
+    width: 100%;
+  }
+  
+  .game-logo {
+    font-size: 1.3rem;
   }
 
+  .status-banner {
+    padding: 10px 15px;
+  }
+  
   .status-banner h2 {
-    font-size: 1.4rem;
+    font-size: 1.1rem;
+    margin-bottom: 4px;
   }
 
   .status-banner p {
-    font-size: 1rem;
+    font-size: 0.85rem;
   }
 
   .word-display {
-    font-size: 1.5rem !important;
+    font-size: 1.2rem !important;
+    letter-spacing: 2px;
+  }
+  
+  .game-sidebar.left {
+    max-height: 180px;
+  }
+  
+  .game-sidebar.right {
+    max-height: 280px;
+  }
+  
+  .game-center {
+    min-height: 300px;
+  }
+  
+  .settings-btn,
+  .exit-btn {
+    font-size: 1.2rem;
+    padding: 6px;
+  }
+}
+
+/* Very Small Mobile (< 400px) */
+@media (max-width: 400px) {
+  .game-main {
+    padding: 5px;
+  }
+  
+  .game-layout {
+    gap: 8px;
+  }
+  
+  .status-banner h2 {
+    font-size: 1rem;
+  }
+  
+  .status-banner p {
+    font-size: 0.8rem;
+  }
+  
+  .word-display {
+    font-size: 1rem !important;
+    letter-spacing: 1px;
+  }
+  
+  .timer-text {
+    font-size: 0.9rem;
+  }
+  
+  .game-logo {
+    font-size: 1.1rem;
   }
 }
 

@@ -1,0 +1,31 @@
+## Format mỗi dòng: word|difficulty|category
+## difficulty: easy|medium|hard
+## Dòng trống hoặc bắt đầu bằng # sẽ bị bỏ qua
+
+cat|easy|animal
+dog|easy|animal
+house|easy|object
+apple|easy|food
+car|easy|vehicle
+table|easy|object
+plane|easy|vehicle
+bread|easy|food
+plant|easy|nature
+chair|easy|object
+fruit|easy|food
+clock|easy|object
+shirt|easy|clothing
+socks|easy|clothing
+river|easy|nature
+mouse|easy|animal
+lemon|easy|food
+piano|easy|object
+peach|easy|food
+train|easy|vehicle
+truck|easy|vehicle
+money|easy|object
+juice|easy|food
+cloud|easy|nature
+sheep|easy|animal
+
+

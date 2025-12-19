@@ -159,24 +159,185 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 480px) {
+/* Responsive Design */
+
+/* Tablet (768px - 968px) */
+@media (max-width: 968px) {
   .create-room-dialog {
-    width: 95%;
-    margin: 20px;
+    max-width: 380px;
   }
   
-  .dialog-header,
+  .dialog-header {
+    padding: 18px 22px 14px;
+  }
+  
+  .dialog-header h3 {
+    font-size: 1.2rem;
+  }
+  
   .dialog-form {
-    padding-left: 16px;
-    padding-right: 16px;
+    padding: 18px 22px 22px;
+  }
+  
+  .form-group {
+    margin-bottom: 18px;
+  }
+  
+  .form-group label {
+    font-size: 0.9rem;
+  }
+  
+  .form-group input,
+  .form-group select {
+    padding: 11px;
+    font-size: 0.95rem;
+  }
+}
+
+/* Mobile Landscape (600px - 768px) */
+@media (max-width: 768px) {
+  .create-room-dialog {
+    max-width: 350px;
+    width: 92%;
+  }
+  
+  .dialog-header {
+    padding: 16px 20px 12px;
+  }
+  
+  .dialog-header h3 {
+    font-size: 1.15rem;
+  }
+  
+  .close-btn {
+    font-size: 1.3rem;
+  }
+  
+  .dialog-form {
+    padding: 16px 20px 20px;
+  }
+  
+  .form-group {
+    margin-bottom: 16px;
+  }
+  
+  .form-group label {
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+  }
+  
+  .form-group input,
+  .form-group select {
+    padding: 10px;
+    font-size: 0.9rem;
+  }
+  
+  .dialog-actions {
+    gap: 10px;
+  }
+  
+  .btn-cancel,
+  .btn-create {
+    padding: 11px 20px;
+    font-size: 0.95rem;
+    min-width: 90px;
+  }
+}
+
+/* Mobile Portrait (< 600px) */
+@media (max-width: 600px) {
+  .create-room-overlay {
+    padding: 10px;
+  }
+  
+  .create-room-dialog {
+    width: 95%;
+    max-width: 100%;
+    margin: 0;
+  }
+  
+  .dialog-header {
+    padding: 14px 16px 10px;
+  }
+  
+  .dialog-header h3 {
+    font-size: 1.1rem;
+  }
+  
+  .close-btn {
+    font-size: 1.2rem;
+    padding: 3px 6px;
+  }
+  
+  .dialog-form {
+    padding: 14px 16px 18px;
+  }
+  
+  .form-group {
+    margin-bottom: 15px;
+  }
+  
+  .form-group:last-of-type {
+    margin-bottom: 20px;
+  }
+  
+  .form-group label {
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+  }
+  
+  .form-group input,
+  .form-group select {
+    padding: 10px;
+    font-size: 0.9rem;
   }
   
   .dialog-actions {
     flex-direction: column;
+    gap: 10px;
   }
   
   .btn-cancel,
   .btn-create {
     width: 100%;
+    padding: 12px;
+    font-size: 0.9rem;
+    min-width: auto;
+  }
+}
+
+/* Very Small Mobile (< 400px) */
+@media (max-width: 400px) {
+  .create-room-dialog {
+    width: 98%;
+    border-radius: 10px;
+  }
+  
+  .dialog-header {
+    padding: 12px 14px 8px;
+  }
+  
+  .dialog-header h3 {
+    font-size: 1rem;
+  }
+  
+  .dialog-form {
+    padding: 12px 14px 16px;
+  }
+  
+  .form-group label {
+    font-size: 0.8rem;
+  }
+  
+  .form-group input,
+  .form-group select {
+    padding: 9px;
+    font-size: 0.85rem;
+  }
+  
+  .btn-cancel,
+  .btn-create {
+    padding: 10px;
+    font-size: 0.85rem;
   }
 }

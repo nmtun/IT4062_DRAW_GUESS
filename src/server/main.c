@@ -43,6 +43,19 @@ int main(int argc, char *argv[]) {
     if (!db) {
         fprintf(stderr, "Không thể kết nối đến database. Server vẫn sẽ chạy nhưng không có database.\n");
         // Tiếp tục chạy server dù không có database
+    } else {
+        // Phase 5 - #17: load words vào database từ file
+        // Thử một vài path phổ biến tùy theo working directory khi chạy binary
+        const char* candidates[] = {
+            "src/data/words.txt",
+            "data/words.txt",
+            "../data/words.txt",
+            NULL
+        };
+        for (int i = 0; candidates[i]; i++) {
+            int loaded = db_load_words_from_file(db, candidates[i]);
+            if (loaded >= 0) break;
+        }
     }
     
     // Khởi tạo server
