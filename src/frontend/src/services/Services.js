@@ -2,8 +2,11 @@
  * Services - xử lý các dịch vụ thông qua WebSocket Gateway
  */
 class Services {
-    constructor(gatewayUrl = 'ws://localhost:3000') {
-        this.gatewayUrl = gatewayUrl;
+    constructor(gatewayUrl = null) {
+        // Đọc từ biến môi trường nếu không được truyền vào
+        // Vite sử dụng import.meta.env thay vì process.env
+        // Biến môi trường phải có prefix VITE_ để được expose
+        this.gatewayUrl = gatewayUrl || import.meta.env.VITE_GATEWAY_URL || 'ws://localhost:3000';
         this.ws = null;
         this.isConnected = false;
         this.isConnecting = false;
