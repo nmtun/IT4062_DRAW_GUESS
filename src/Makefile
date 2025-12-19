@@ -33,22 +33,25 @@ CFLAGS = -Wall -Wextra -g
 # Tìm MySQL include directory
 # Nếu mysql.h nằm trong thư mục con mysql/, lấy thư mục cha làm include path
 MYSQL_H_PATH := $(shell find /usr/local /opt/homebrew -name "mysql.h" 2>/dev/null | head -1)
-MYSQL_H_DIR := $(shell echo $(MYSQL_H_PATH) | xargs dirname)
-MYSQL_H_PARENT := $(shell echo $(MYSQL_H_DIR) | xargs dirname)
+MYSQL_H_DIR := $(shell if [ -n "$(MYSQL_H_PATH)" ]; then echo $(MYSQL_H_PATH) | xargs dirname; fi)
+MYSQL_H_PARENT := $(shell if [ -n "$(MYSQL_H_DIR)" ]; then echo $(MYSQL_H_DIR) | xargs dirname; fi)
 # Kiểm tra nếu thư mục chứa mysql.h có tên là "mysql", thì dùng thư mục cha
-MYSQL_INCLUDE := $(shell if [ "$(shell basename $(MYSQL_H_DIR))" = "mysql" ]; then echo $(MYSQL_H_PARENT); else echo $(MYSQL_H_DIR); fi)
+MYSQL_INCLUDE := $(shell if [ -n "$(MYSQL_H_DIR)" ]; then if [ "$(shell basename $(MYSQL_H_DIR))" = "mysql" ]; then echo $(MYSQL_H_PARENT); else echo $(MYSQL_H_DIR); fi; fi)
 
 # Tìm MySQL lib directory
-MYSQL_LIB_DIR := $(shell find /usr/local /opt/homebrew -name "libmysqlclient.*" 2>/dev/null | head -1 | xargs dirname)
+MYSQL_LIB_PATH := $(shell find /usr/local /opt/homebrew -name "libmysqlclient.*" 2>/dev/null | head -1)
+MYSQL_LIB_DIR := $(shell if [ -n "$(MYSQL_LIB_PATH)" ]; then echo $(MYSQL_LIB_PATH) | xargs dirname; fi)
 
 # Tìm zstd lib directory (ưu tiên homebrew Cellar và opt)
-ZSTD_LIB_DIR := $(shell find /opt/homebrew/Cellar/zstd/*/lib /opt/homebrew/opt/zstd/lib /opt/homebrew/lib /usr/local/lib -name "libzstd.dylib" 2>/dev/null | head -1 | xargs dirname)
+ZSTD_LIB_PATH := $(shell find /opt/homebrew/Cellar/zstd/*/lib /opt/homebrew/opt/zstd/lib /opt/homebrew/lib /usr/local/lib -name "libzstd.dylib" 2>/dev/null | head -1)
+ZSTD_LIB_DIR := $(shell if [ -n "$(ZSTD_LIB_PATH)" ]; then echo $(ZSTD_LIB_PATH) | xargs dirname; fi)
 
 # Tìm OpenSSL lib directory (cần cho MySQL)
 SSL_LIB_DIR := $(shell find /opt/homebrew/opt/openssl*/lib /usr/local/opt/openssl*/lib -type d 2>/dev/null | head -1)
 
 # Tìm OpenSSL include directory (cần cho auth.c)
-SSL_INCLUDE := $(shell find /opt/homebrew/opt/openssl*/include /usr/local/opt/openssl*/include -name "openssl" -type d 2>/dev/null | head -1 | xargs dirname)
+SSL_INCLUDE_PATH := $(shell find /opt/homebrew/opt/openssl*/include /usr/local/opt/openssl*/include -name "openssl" -type d 2>/dev/null | head -1)
+SSL_INCLUDE := $(shell if [ -n "$(SSL_INCLUDE_PATH)" ]; then echo $(SSL_INCLUDE_PATH) | xargs dirname; fi)
 
 # Thêm flags nếu tìm thấy
 ifneq ($(MYSQL_INCLUDE),)
