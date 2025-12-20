@@ -14,7 +14,7 @@
 #define SERVER_PORT 8080
 
 /**
- * Kết nối đến server
+ * Ket noi den server
  */
 int connect_to_server(const char* ip, int port) {
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -40,17 +40,17 @@ int connect_to_server(const char* ip, int port) {
         return -1;
     }
 
-    printf("✓ Đã kết nối đến server %s:%d\n", ip, port);
+    printf("✓ Da ket noi den server %s:%d\n", ip, port);
     return sockfd;
 }
 
 /**
- * Gửi message đến server
+ * Gui message den server
  */
 int send_message(int sockfd, uint8_t type, const uint8_t* payload, uint16_t payload_len) {
     uint8_t buffer[1024];
     
-    // Tạo message format: [TYPE][LENGTH][PAYLOAD]
+    // Tao message format: [TYPE][LENGTH][PAYLOAD]
     buffer[0] = type;
     
     // Length (network byte order)
@@ -71,16 +71,16 @@ int send_message(int sockfd, uint8_t type, const uint8_t* payload, uint16_t payl
     }
     
     if (sent != total_len) {
-        printf("⚠ Cảnh báo: Chỉ gửi được %zd/%d bytes\n", sent, total_len);
+        printf("⚠ Canh bao: Chi gui duoc %zd/%d bytes\n", sent, total_len);
         return -1;
     }
     
-    printf("✓ Đã gửi %zd bytes (type=0x%02X, payload_len=%d)\n", sent, type, payload_len);
+    printf("✓ Da gui %zd bytes (type=0x%02X, payload_len=%d)\n", sent, type, payload_len);
     return 0;
 }
 
 /**
- * Nhận message từ server
+ * Nhan message tu server
  */
 int receive_message(int sockfd, uint8_t* msg_type_out, uint8_t* buffer_out, size_t buffer_size) {
     uint8_t header[3];
@@ -88,7 +88,7 @@ int receive_message(int sockfd, uint8_t* msg_type_out, uint8_t* buffer_out, size
     
     if (bytes_read <= 0) {
         if (bytes_read == 0) {
-            printf("✗ Server đã đóng kết nối\n");
+            printf("✗ Server da dong ket noi\n");
         } else {
             perror("recv() failed");
         }
@@ -96,7 +96,7 @@ int receive_message(int sockfd, uint8_t* msg_type_out, uint8_t* buffer_out, size
     }
     
     if (bytes_read < 3) {
-        printf("✗ Lỗi: Message header quá ngắn (%zd bytes)\n", bytes_read);
+        printf("✗ Loi: Message header qua ngan (%zd bytes)\n", bytes_read);
         return -1;
     }
     
@@ -111,19 +111,19 @@ int receive_message(int sockfd, uint8_t* msg_type_out, uint8_t* buffer_out, size
     
     if (length > 0) {
         if (length > buffer_size - 1) {
-            printf("✗ Lỗi: Payload quá lớn (%d bytes, buffer chỉ có %zu bytes)\n", length, buffer_size);
+            printf("✗ Loi: Payload qua lon (%d bytes, buffer chi co %zu bytes)\n", length, buffer_size);
             return -1;
         }
         
         bytes_read = recv(sockfd, buffer_out, length, 0);
         if (bytes_read != length) {
-            printf("✗ Lỗi: Chỉ nhận được %zd/%d bytes payload\n", bytes_read, length);
+            printf("✗ Loi: Chi nhan duoc %zd/%d bytes payload\n", bytes_read, length);
             return -1;
         }
-        buffer_out[length] = '\0';  // Null-terminate để an toàn
+        buffer_out[length] = '\0';  // Null-terminate de an toan
     }
     
-    printf("✓ Nhận message: type=0x%02X, length=%d\n", type, length);
+    printf("✓ Nhan message: type=0x%02X, length=%d\n", type, length);
     return length;
 }
 
@@ -150,7 +150,7 @@ int test_login(int sockfd, const char* username, const char* password) {
     }
     
     if (msg_type != MSG_LOGIN_RESPONSE) {
-        printf("✗ Lỗi: Nhận message type 0x%02X, mong đợi LOGIN_RESPONSE (0x%02X)\n", 
+        printf("✗ Loi: Nhan message type 0x%02X, mong doi LOGIN_RESPONSE (0x%02X)\n", 
                msg_type, MSG_LOGIN_RESPONSE);
         return -1;
     }
@@ -158,16 +158,16 @@ int test_login(int sockfd, const char* username, const char* password) {
     login_response_t* resp = (login_response_t*)buffer;
     if (resp->status == STATUS_SUCCESS) {
         int32_t user_id = (int32_t)ntohl((uint32_t)resp->user_id);
-        printf("✓ Đăng nhập thành công! user_id=%d, username=%s\n", user_id, resp->username);
+        printf("✓ Dang nhap thanh cong! user_id=%d, username=%s\n", user_id, resp->username);
         return user_id;
     } else {
-        printf("✗ Đăng nhập thất bại (status=0x%02X)\n", resp->status);
+        printf("✗ Dang nhap that bai (status=0x%02X)\n", resp->status);
         return -1;
     }
 }
 
 /**
- * Test gửi DRAW_DATA
+ * Test gui DRAW_DATA
  */
 int test_send_draw_data(int sockfd, uint8_t action, uint16_t x1, uint16_t y1, 
                         uint16_t x2, uint16_t y2, uint32_t color, uint8_t width) {
@@ -175,7 +175,7 @@ int test_send_draw_data(int sockfd, uint8_t action, uint16_t x1, uint16_t y1,
     printf("Action: %d, Line: (%d,%d) -> (%d,%d), Color: 0x%08X, Width: %d\n",
            action, x1, y1, x2, y2, color, width);
     
-    // Tạo draw action
+    // Tao draw action
     draw_action_t draw_action;
     draw_action.action = (draw_action_type_t)action;
     draw_action.x1 = x1;
@@ -187,7 +187,7 @@ int test_send_draw_data(int sockfd, uint8_t action, uint16_t x1, uint16_t y1,
     
     // Validate action
     if (!drawing_validate_action(&draw_action)) {
-        printf("✗ Lỗi: Draw action không hợp lệ\n");
+        printf("✗ Loi: Draw action khong hop le\n");
         return -1;
     }
     
@@ -195,25 +195,25 @@ int test_send_draw_data(int sockfd, uint8_t action, uint16_t x1, uint16_t y1,
     uint8_t payload[14];
     int payload_len = drawing_serialize_action(&draw_action, payload);
     if (payload_len != 14) {
-        printf("✗ Lỗi: Serialize thất bại (payload_len=%d, mong đợi 14)\n", payload_len);
+        printf("✗ Loi: Serialize that bai (payload_len=%d, mong doi 14)\n", payload_len);
         return -1;
     }
     
-    // Gửi DRAW_DATA
+    // Gui DRAW_DATA
     if (send_message(sockfd, MSG_DRAW_DATA, payload, 14) < 0) {
         return -1;
     }
     
-    printf("✓ Đã gửi DRAW_DATA thành công\n");
+    printf("✓ Da gui DRAW_DATA thanh cong\n");
     return 0;
 }
 
 /**
- * Test nhận DRAW_BROADCAST
+ * Test nhan DRAW_BROADCAST
  */
 int test_receive_draw_broadcast(int sockfd, int timeout_seconds) {
     printf("\n=== TEST RECEIVE DRAW_BROADCAST ===\n");
-    printf("Đang đợi DRAW_BROADCAST từ server (timeout: %d giây)...\n", timeout_seconds);
+    printf("Dang doi DRAW_BROADCAST tu server (timeout: %d giay)...\n", timeout_seconds);
     
     fd_set readfds;
     struct timeval timeout;
@@ -231,12 +231,12 @@ int test_receive_draw_broadcast(int sockfd, int timeout_seconds) {
     }
     
     if (ready == 0) {
-        printf("✗ Timeout: Không nhận được DRAW_BROADCAST trong %d giây\n", timeout_seconds);
+        printf("✗ Timeout: Khong nhan duoc DRAW_BROADCAST trong %d giay\n", timeout_seconds);
         return -1;
     }
     
     if (!FD_ISSET(sockfd, &readfds)) {
-        printf("✗ Lỗi: Socket không sẵn sàng\n");
+        printf("✗ Loi: Socket khong san sang\n");
         return -1;
     }
     
@@ -249,19 +249,19 @@ int test_receive_draw_broadcast(int sockfd, int timeout_seconds) {
     }
     
     if (msg_type != MSG_DRAW_BROADCAST) {
-        printf("⚠ Nhận message type 0x%02X (không phải DRAW_BROADCAST 0x%02X)\n",
+        printf("⚠ Nhan message type 0x%02X (khong phai DRAW_BROADCAST 0x%02X)\n",
                msg_type, MSG_DRAW_BROADCAST);
-        return 0;  // Không phải lỗi, chỉ là message khác
+        return 0;  // Khong phai loi, chi la message khac
     }
     
     // Parse draw action
     draw_action_t action;
     if (drawing_parse_action(buffer, payload_len, &action) != 0) {
-        printf("✗ Lỗi: Không thể parse draw action\n");
+        printf("✗ Loi: Khong the parse draw action\n");
         return -1;
     }
     
-    printf("✓ Nhận DRAW_BROADCAST thành công:\n");
+    printf("✓ Nhan DRAW_BROADCAST thanh cong:\n");
     printf("  Action: %d\n", action.action);
     printf("  Line: (%d,%d) -> (%d,%d)\n", action.x1, action.y1, action.x2, action.y2);
     printf("  Color: 0x%08X\n", action.color);
@@ -286,7 +286,7 @@ int test_send_clear(int sockfd) {
         return -1;
     }
     
-    printf("✓ Đã gửi CLEAR action thành công\n");
+    printf("✓ Da gui CLEAR action thanh cong\n");
     return 0;
 }
 
@@ -302,18 +302,18 @@ int main(int argc, char* argv[]) {
         printf("Usage: %s <mode> [args...]\n\n", argv[0]);
         printf("Modes:\n");
         printf("  send <username> <password> <action> <x1> <y1> <x2> <y2> <color> <width>\n");
-        printf("       - Gửi DRAW_DATA (action: 0=MOVE, 1=LINE, 2=CLEAR)\n");
-        printf("       - Ví dụ: %s send user1 pass123 1 100 100 200 200 0xFF0000FF 5\n\n", argv[0]);
+        printf("       - Gui DRAW_DATA (action: 0=MOVE, 1=LINE, 2=CLEAR)\n");
+        printf("       - Vi du: %s send user1 pass123 1 100 100 200 200 0xFF0000FF 5\n\n", argv[0]);
         printf("  receive <username> <password> [timeout]\n");
-        printf("       - Đăng nhập và đợi nhận DRAW_BROADCAST\n");
-        printf("       - Ví dụ: %s receive user1 pass123 10\n\n", argv[0]);
+        printf("       - Dang nhap va doi nhan DRAW_BROADCAST\n");
+        printf("       - Vi du: %s receive user1 pass123 10\n\n", argv[0]);
         printf("  clear <username> <password>\n");
-        printf("       - Gửi CLEAR action\n");
-        printf("       - Ví dụ: %s clear user1 pass123\n\n", argv[0]);
+        printf("       - Gui CLEAR action\n");
+        printf("       - Vi du: %s clear user1 pass123\n\n", argv[0]);
         return 1;
     }
     
-    // Kết nối đến server
+    // Ket noi den server
     int sockfd = connect_to_server(SERVER_IP, SERVER_PORT);
     if (sockfd < 0) {
         return 1;
@@ -323,11 +323,11 @@ int main(int argc, char* argv[]) {
     
     if (strcmp(argv[1], "send") == 0) {
         if (argc < 12) {
-            printf("✗ Lỗi: Thiếu tham số\n");
+            printf("✗ Loi: Thieu tham so\n");
             printf("Usage: %s send <username> <password> <action> <x1> <y1> <x2> <y2> <color> <width>\n", argv[0]);
             result = 1;
         } else {
-            // Đăng nhập
+            // Dang nhap
             int user_id = test_login(sockfd, argv[2], argv[3]);
             if (user_id <= 0) {
                 result = 1;
@@ -341,55 +341,55 @@ int main(int argc, char* argv[]) {
                 uint32_t color = (uint32_t)strtoul(argv[9], NULL, 16);  // Hex format
                 uint8_t width = (uint8_t)atoi(argv[10]);
                 
-                // Gửi DRAW_DATA
+                // Gui DRAW_DATA
                 result = test_send_draw_data(sockfd, action, x1, y1, x2, y2, color, width);
             }
         }
     } else if (strcmp(argv[1], "receive") == 0) {
         if (argc < 4) {
-            printf("✗ Lỗi: Thiếu tham số\n");
+            printf("✗ Loi: Thieu tham so\n");
             printf("Usage: %s receive <username> <password> [timeout]\n", argv[0]);
             result = 1;
         } else {
-            // Đăng nhập
+            // Dang nhap
             int user_id = test_login(sockfd, argv[2], argv[3]);
             if (user_id <= 0) {
                 result = 1;
             } else {
                 int timeout = (argc >= 5) ? atoi(argv[4]) : 10;
-                printf("\n✓ Đã đăng nhập. Đang đợi DRAW_BROADCAST...\n");
-                printf("(Lưu ý: Cần có client khác gửi DRAW_DATA để nhận được broadcast)\n\n");
+                printf("\n✓ Da dang nhap. Dang doi DRAW_BROADCAST...\n");
+                printf("(Luu y: Can co client khac gui DRAW_DATA de nhan duoc broadcast)\n\n");
                 
-                // Đợi nhận DRAW_BROADCAST
+                // Doi nhan DRAW_BROADCAST
                 result = test_receive_draw_broadcast(sockfd, timeout);
             }
         }
     } else if (strcmp(argv[1], "clear") == 0) {
         if (argc < 4) {
-            printf("✗ Lỗi: Thiếu tham số\n");
+            printf("✗ Loi: Thieu tham so\n");
             printf("Usage: %s clear <username> <password>\n", argv[0]);
             result = 1;
         } else {
-            // Đăng nhập
+            // Dang nhap
             int user_id = test_login(sockfd, argv[2], argv[3]);
             if (user_id <= 0) {
                 result = 1;
             } else {
-                // Gửi CLEAR
+                // Gui CLEAR
                 result = test_send_clear(sockfd);
             }
         }
     } else {
-        printf("✗ Lỗi: Mode không hợp lệ: %s\n", argv[1]);
+        printf("✗ Loi: Mode khong hop le: %s\n", argv[1]);
         result = 1;
     }
     
     close(sockfd);
     printf("\n========================================\n");
     if (result == 0) {
-        printf("✓ Test hoàn thành thành công!\n");
+        printf("✓ Test hoan thanh thanh cong!\n");
     } else {
-        printf("✗ Test thất bại!\n");
+        printf("✗ Test that bai!\n");
     }
     printf("========================================\n");
     

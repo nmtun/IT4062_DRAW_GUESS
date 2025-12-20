@@ -12,7 +12,7 @@
 #define SERVER_PORT 8080
 
 /**
- * Kết nối đến server
+ * Ket noi den server
  */
 int connect_to_server(const char* ip, int port) {
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -38,17 +38,17 @@ int connect_to_server(const char* ip, int port) {
         return -1;
     }
 
-    printf("Đã kết nối đến server %s:%d\n", ip, port);
+    printf("Da ket noi den server %s:%d\n", ip, port);
     return sockfd;
 }
 
 /**
- * Gửi message đến server
+ * Gui message den server
  */
 int send_message(int sockfd, uint8_t type, const uint8_t* payload, uint16_t payload_len) {
     uint8_t buffer[1024];
     
-    // Tạo message format: [TYPE][LENGTH][PAYLOAD]
+    // Tao message format: [TYPE][LENGTH][PAYLOAD]
     buffer[0] = type;
     
     // Length (network byte order)
@@ -68,22 +68,22 @@ int send_message(int sockfd, uint8_t type, const uint8_t* payload, uint16_t payl
         return -1;
     }
     
-    printf("Đã gửi %zd bytes (type=0x%02X, payload_len=%d)\n", sent, type, payload_len);
+    printf("Da gui %zd bytes (type=0x%02X, payload_len=%d)\n", sent, type, payload_len);
     return 0;
 }
 
 /**
- * Nhận và parse response
+ * Nhan va parse response
  */
  int receive_response(int fd, uint8_t* expected_type) {
     uint8_t buffer[1024];
     
-    while (1) {  // Vòng lặp để xử lý tất cả messages
+    while (1) {  // Vong lap de xu ly tat ca messages
         ssize_t bytes_read = recv(fd, buffer, sizeof(buffer), 0);
         
         if (bytes_read <= 0) {
             if (bytes_read == 0) {
-                printf("✗ Server đã đóng kết nối\n");
+                printf("✗ Server da dong ket noi\n");
             } else {
                 perror("recv() failed");
             }
@@ -91,7 +91,7 @@ int send_message(int sockfd, uint8_t type, const uint8_t* payload, uint16_t payl
         }
         
         if (bytes_read < 3) {
-            printf("✗ Lỗi: Message quá ngắn (%zd bytes)\n", bytes_read);
+            printf("✗ Loi: Message qua ngan (%zd bytes)\n", bytes_read);
             return -1;
         }
         
@@ -100,7 +100,7 @@ int send_message(int sockfd, uint8_t type, const uint8_t* payload, uint16_t payl
         memcpy(&length_network, buffer + 1, 2);
         uint16_t length = ntohs(length_network);
         
-        // Xử lý ROOM_UPDATE ngay lập tức nếu nhận được
+        // Xu ly ROOM_UPDATE ngay lap tuc neu nhan duoc
         if (type == MSG_ROOM_UPDATE) {
             if (length >= sizeof(room_info_protocol_t)) {
                 room_info_protocol_t* room_info = (room_info_protocol_t*)(buffer + 3);
@@ -109,29 +109,29 @@ int send_message(int sockfd, uint8_t type, const uint8_t* payload, uint16_t payl
                 const char* state_str = (state == 0) ? "WAITING" : 
                                        (state == 1) ? "PLAYING" : "FINISHED";
                 
-                printf("\n[ROOM_UPDATE] Phòng %d: %s - %d/%d người chơi (%s)\n",
+                printf("\n[ROOM_UPDATE] Phong %d: %s - %d/%d nguoi choi (%s)\n",
                        room_id, room_info->room_name, 
                        room_info->player_count, room_info->max_players, state_str);
                 
-                // Tiếp tục đợi message mong đợi
+                // Tiep tuc doi message mong doi
                 continue;
             }
         }
         
-        // Kiểm tra message type mong đợi
+        // Kiem tra message type mong doi
         if (expected_type && type != *expected_type) {
-            printf("✗ Lỗi: Nhận message type 0x%02X, mong đợi 0x%02X\n", type, *expected_type);
+            printf("✗ Loi: Nhan message type 0x%02X, mong doi 0x%02X\n", type, *expected_type);
             return -1;
         }
         
-        printf("✓ Nhận response: type=0x%02X, length=%d\n", type, length);
+        printf("✓ Nhan response: type=0x%02X, length=%d\n", type, length);
         
-        // Parse response dựa trên type (giữ nguyên code cũ)
+        // Parse response dua tren type (giu nguyen code cu)
         switch (type) {
-            // ... các case khác giữ nguyên ...
+            // ... cac case khac giu nguyen ...
         }
         
-        return 0;  // Đã nhận được message mong đợi
+        return 0;  // Da nhan duoc message mong doi
     }
 }
 
@@ -143,18 +143,18 @@ int test_login(int sockfd, const char* username, const char* password) {
     printf("Username: %s\n", username);
     printf("Password: %s\n", password);
     
-    // Tạo login request
+    // Tao login request
     login_request_t req;
     memset(&req, 0, sizeof(req));
     strncpy(req.username, username, MAX_USERNAME_LEN - 1);
     strncpy(req.password, password, MAX_PASSWORD_LEN - 1);
     
-    // Gửi LOGIN_REQUEST
+    // Gui LOGIN_REQUEST
     if (send_message(sockfd, MSG_LOGIN_REQUEST, (uint8_t*)&req, sizeof(req)) < 0) {
         return -1;
     }
     
-    // Nhận response
+    // Nhan response
     uint8_t expected = MSG_LOGIN_RESPONSE;
     return receive_response(sockfd, &expected);
 }
@@ -168,27 +168,27 @@ int test_register(int sockfd, const char* username, const char* password, const 
     printf("Password: %s\n", password);
     printf("Email: %s\n", email);
     
-    // Tạo register request
+    // Tao register request
     register_request_t req;
     memset(&req, 0, sizeof(req));
     strncpy(req.username, username, MAX_USERNAME_LEN - 1);
     strncpy(req.password, password, MAX_PASSWORD_LEN - 1);
     strncpy(req.email, email, MAX_EMAIL_LEN - 1);
     
-    // Gửi REGISTER_REQUEST
+    // Gui REGISTER_REQUEST
     if (send_message(sockfd, MSG_REGISTER_REQUEST, (uint8_t*)&req, sizeof(req)) < 0) {
         return -1;
     }
     
-    // Nhận response
+    // Nhan response
     uint8_t expected = MSG_REGISTER_RESPONSE;
     return receive_response(sockfd, &expected);
 }
 
 void login_session_loop(int sockfd) {
-    // Đợi lệnh từ người dùng, ví dụ: gửi lệnh hoặc nhận data từ server
-    // Ở đây chỉ đơn giản là chờ server gửi tin nhắn hoặc nhập lệnh từ stdin
-    printf("Bạn đang ở trạng thái đã đăng nhập. Nhập 'quit' để thoát.\n");
+    // Doi lenh tu nguoi dung, vi du: gui lenh hoac nhan data tu server
+    // O day chi don gian la cho server gui tin nhan hoac nhap lenh tu stdin
+    printf("Ban dang o trang thai da dang nhap. Nhap 'quit' de thoat.\n");
     fd_set readfds;
     char input[256];
     while (1) {
@@ -202,25 +202,25 @@ void login_session_loop(int sockfd) {
             perror("select() failed");
             break;
         }
-        // Nhập từ bàn phím
+        // Nhap tu ban phim
         if (FD_ISSET(0, &readfds)) {
             if (fgets(input, sizeof(input), stdin)) {
-                // Loại bỏ ký tự newline
+                // Loai bo ky tu newline
                 size_t len = strlen(input);
                 if (len > 0 && input[len-1] == '\n') input[len-1] = '\0';
                 if (strcmp(input, "quit") == 0) {
-                    printf("Đang đăng xuất và đóng kết nối...\n");
+                    printf("Dang dang xuat va dong ket noi...\n");
                     break;
                 }
-                // Nếu có lệnh khác, gửi message hoặc xử lý tùy ý. Ở đây chỉ in ra.
-                printf("Bạn đã nhập: %s (có thể hiện thực gửi lệnh này lên server)\n", input);
+                // Neu co lenh khac, gui message hoac xu ly tuy y. O day chi in ra.
+                printf("Ban da nhap: %s (co the hien thuc gui lenh nay len server)\n", input);
             }
         }
-        // Có dữ liệu từ server
+        // Co du lieu tu server
         if (FD_ISSET(sockfd, &readfds)) {
-            printf("Có message từ server:\n");
+            printf("Co message tu server:\n");
             if (receive_response(sockfd, NULL) < 0) {
-                printf("Mất kết nối server hoặc lỗi khi nhận message.\n");
+                printf("Mat ket noi server hoac loi khi nhan message.\n");
                 break;
             }
         }
@@ -239,7 +239,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
-    // Kết nối đến server
+    // Ket noi den server
     int sockfd = connect_to_server(SERVER_IP, SERVER_PORT);
     if (sockfd < 0) {
         return 1;
@@ -250,7 +250,7 @@ int main(int argc, char* argv[]) {
     
     if (strcmp(argv[1], "login") == 0) {
         if (argc < 4) {
-            printf("Lỗi: Thiếu username hoặc password\n");
+            printf("Loi: Thieu username hoac password\n");
             printf("Usage: %s login <username> <password>\n", argv[0]);
             result = 1;
         } else {
@@ -261,18 +261,18 @@ int main(int argc, char* argv[]) {
         }
     } else if (strcmp(argv[1], "register") == 0) {
         if (argc < 5) {
-            printf("Lỗi: Thiếu thông tin đăng ký\n");
+            printf("Loi: Thieu thong tin dang ky\n");
             printf("Usage: %s register <username> <password> <email>\n", argv[0]);
             result = 1;
         } else {
             result = test_register(sockfd, argv[2], argv[3], argv[4]);
         }
     } else {
-        printf("Lỗi: Command không hợp lệ: %s\n", argv[1]);
+        printf("Loi: Command khong hop le: %s\n", argv[1]);
         result = 1;
     }
 
-    // Nếu đã đăng nhập thành công thì giữ kết nối, cho phép gửi lệnh
+    // Neu da dang nhap thanh cong thi giu ket noi, cho phep gui lenh
     if (is_logged_in) {
         login_session_loop(sockfd);
     }

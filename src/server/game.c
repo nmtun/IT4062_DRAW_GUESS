@@ -5,7 +5,7 @@
 #include <string.h>
 #include <ctype.h>
 
-// db global đang được khai báo trong main.c (server hiện chưa nhúng db vào server_t)
+// db global dang duoc khai bao trong main.c (server hien chua nhung db vao server_t)
 extern db_connection_t* db;
 
 static void str_to_lower_ascii(char* s) {
@@ -64,7 +64,7 @@ game_state_t* game_init(room_t* room, int total_rounds, int time_limit_seconds) 
     game->game_ended = false;
     game->db_round_id = 0;
 
-    // chọn drawer_index ban đầu: owner index nếu có, fallback 0
+    // chon drawer_index ban dau: owner index neu co, fallback 0
     int owner_idx = -1;
     for (int i = 0; i < room->player_count; i++) {
         if (room->players[i] == room->owner_id) {
@@ -88,13 +88,13 @@ static int pick_next_drawer_index(game_state_t* game) {
     const int n = game->room->player_count;
     if (n <= 0) return -1;
 
-    // tìm user active tiếp theo (active_players[i] == 1)
+    // tim user active tiep theo (active_players[i] == 1)
     for (int step = 1; step <= n; step++) {
         int idx = (game->drawer_index + step) % n;
         if (game->room->active_players[idx]) return idx;
     }
 
-    // nếu không có ai active, fallback 0
+    // neu khong co ai active, fallback 0
     return 0;
 }
 
@@ -104,7 +104,7 @@ static void assign_new_word(game_state_t* game) {
     char word[64] = {0};
     int ok = -1;
 
-    // Tạm thời: chọn difficulty theo round (1/3 easy, 1/3 medium, 1/3 hard)
+    // Tam thoi: chon difficulty theo round (1/3 easy, 1/3 medium, 1/3 hard)
     const char* diff = "medium";
     if (game->total_rounds > 0) {
         int phase = (game->current_round - 1) % 3;
@@ -116,7 +116,7 @@ static void assign_new_word(game_state_t* game) {
     }
 
     if (ok != 0 || word[0] == '\0') {
-        // fallback nếu DB không sẵn sàng
+        // fallback neu DB khong san sang
         safe_copy_word(word, sizeof(word), "cat");
     }
 
@@ -128,7 +128,7 @@ bool game_start_round(game_state_t* game) {
     if (!game || !game->room) return false;
     if (game->game_ended) return false;
 
-    // hết round thì end game
+    // het round thi end game
     if (game->current_round >= game->total_rounds) {
         game_end(game);
         return false;
@@ -136,13 +136,13 @@ bool game_start_round(game_state_t* game) {
 
     game->current_round++;
 
-    // drawer_id theo drawer_index hiện tại
+    // drawer_id theo drawer_index hien tai
     if (game->drawer_index < 0 || game->drawer_index >= game->room->player_count) {
         game->drawer_index = 0;
     }
     game->drawer_id = game->room->players[game->drawer_index];
     if (game->drawer_id <= 0) {
-        // tìm drawer hợp lệ
+        // tim drawer hop le
         game->drawer_index = pick_next_drawer_index(game);
         game->drawer_id = (game->drawer_index >= 0) ? game->room->players[game->drawer_index] : -1;
     }
@@ -163,7 +163,7 @@ bool game_check_timeout(game_state_t* game) {
 
     time_t now = time(NULL);
     if ((int)(now - game->round_start_time) > game->time_limit) {
-        // timeout → end round thất bại (không ai thắng round)
+        // timeout → end round that bai (khong ai thang round)
         game_end_round(game, false, -1);
         return true;
     }
@@ -185,14 +185,14 @@ bool game_handle_guess(game_state_t* game, int guesser_user_id, const char* gues
     if (!guess_word || guess_word[0] == '\0') return false;
     if (game->drawer_id <= 0 || game->current_word[0] == '\0') return false;
 
-    // drawer không được đoán
+    // drawer khong duoc doan
     if (guesser_user_id == game->drawer_id) return false;
 
     if (!words_equal_case_insensitive(guess_word, game->current_word)) {
         return false;
     }
 
-    // đúng → cộng điểm
+    // dung → cong diem
     int gidx = find_score_index(game, guesser_user_id);
     if (gidx >= 0) {
         game->scores[gidx].score += GAME_POINTS_GUESSER;
@@ -229,21 +229,21 @@ void game_end_round(game_state_t* game, bool success, int winner_user_id) {
     printf("[GAME] Room %d end round %d: %s, word='%s'\n",
            game->room->room_id, game->current_round, success ? "SUCCESS" : "TIMEOUT", game->current_word);
 
-    // chuẩn bị drawer cho round tiếp theo
+    // chuan bi drawer cho round tiep theo
     game->drawer_index = pick_next_drawer_index(game);
 
-    // reset word/timer cho round hiện tại (round mới sẽ set lại)
+    // reset word/timer cho round hien tai (round moi se set lai)
     game->current_word[0] = '\0';
     game->word_length = 0;
     game->round_start_time = 0;
 
-    // hết game?
+    // het game?
     if (game->current_round >= game->total_rounds) {
         game_end(game);
         return;
     }
 
-    // Round tiếp theo sẽ do caller gọi (phase 19 sẽ schedule/broadcast)
+    // Round tiep theo se do caller goi (phase 19 se schedule/broadcast)
     (void)winner_user_id;
 }
 

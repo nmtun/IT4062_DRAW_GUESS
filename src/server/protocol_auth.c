@@ -7,11 +7,11 @@
 #include <string.h>
 #include <arpa/inet.h>
 
-// External database connection (từ main.c)
+// External database connection (tu main.c)
 extern db_connection_t* db;
 
 /**
- * Gửi LOGIN_RESPONSE
+ * Gui LOGIN_RESPONSE
  */
 int protocol_send_login_response(int client_fd, uint8_t status, int32_t user_id, const char* username) {
     login_response_t response;
@@ -30,7 +30,7 @@ int protocol_send_login_response(int client_fd, uint8_t status, int32_t user_id,
 }
 
 /**
- * Gửi REGISTER_RESPONSE
+ * Gui REGISTER_RESPONSE
  */
 int protocol_send_register_response(int client_fd, uint8_t status, const char* message) {
     register_response_t response;
@@ -48,11 +48,11 @@ int protocol_send_register_response(int client_fd, uint8_t status, const char* m
 }
 
 /**
- * Kiểm tra user đã đăng nhập và đang active không
- * @param server Con trỏ đến server_t
- * @param user_id User ID cần kiểm tra
- * @param exclude_client_index Client index cần loại trừ (thường là client hiện tại)
- * @return 1 nếu user đã đăng nhập và active, 0 nếu chưa
+ * Kiem tra user da dang nhap va dang active khong
+ * @param server Con tro den server_t
+ * @param user_id User ID can kiem tra
+ * @param exclude_client_index Client index can loai tru (thuong la client hien tai)
+ * @return 1 neu user da dang nhap va active, 0 neu chua
  */
 static int protocol_is_user_already_logged_in(server_t* server, int user_id, int exclude_client_index) {
     if (!server || user_id <= 0) {
@@ -60,26 +60,26 @@ static int protocol_is_user_already_logged_in(server_t* server, int user_id, int
     }
 
     for (int i = 0; i < MAX_CLIENTS; i++) {
-        // Bỏ qua client hiện tại
+        // Bo qua client hien tai
         if (i == exclude_client_index) {
             continue;
         }
 
         client_t* client = &server->clients[i];
         
-        // Kiểm tra client đang active, đã đăng nhập với cùng user_id và state = LOGGED_IN
+        // Kiem tra client dang active, da dang nhap voi cung user_id va state = LOGGED_IN
         if (client->active && 
             client->user_id == user_id && 
             client->state == CLIENT_STATE_LOGGED_IN) {
-            return 1;  // User đã đăng nhập
+            return 1;  // User da dang nhap
         }
     }
 
-    return 0;  // User chưa đăng nhập
+    return 0;  // User chua dang nhap
 }
 
 /**
- * Xử lý LOGIN_REQUEST
+ * Xu ly LOGIN_REQUEST
  */
 int protocol_handle_login(server_t* server, int client_index, const message_t* msg) {
     if (!server || client_index < 0 || client_index >= MAX_CLIENTS || !msg) {
@@ -91,7 +91,7 @@ int protocol_handle_login(server_t* server, int client_index, const message_t* m
         return -1;
     }
 
-    // Kiểm tra payload size
+    // Kiem tra payload size
     if (msg->length < sizeof(login_request_t)) {
         protocol_send_login_response(client->fd, STATUS_ERROR, -1, "");
         return -1;
@@ -100,7 +100,7 @@ int protocol_handle_login(server_t* server, int client_index, const message_t* m
     // Parse payload
     login_request_t* req = (login_request_t*)msg->payload;
     
-    // Đảm bảo null-terminated
+    // Dam bao null-terminated
     char username[MAX_USERNAME_LEN];
     char password[MAX_PASSWORD_LEN];
     strncpy(username, req->username, MAX_USERNAME_LEN - 1);
@@ -108,9 +108,9 @@ int protocol_handle_login(server_t* server, int client_index, const message_t* m
     strncpy(password, req->password, MAX_PASSWORD_LEN - 1);
     password[MAX_PASSWORD_LEN - 1] = '\0';
 
-    printf("Nhận LOGIN_REQUEST từ client %d: username=%s\n", client_index, username);
+    printf("Nhan LOGIN_REQUEST tu client %d: username=%s\n", client_index, username);
 
-    // Kiểm tra database connection
+    // Kiem tra database connection
     if (!db) {
         protocol_send_login_response(client->fd, STATUS_ERROR, -1, "");
         return -1;
@@ -123,38 +123,38 @@ int protocol_handle_login(server_t* server, int client_index, const message_t* m
         return -1;
     }
 
-    // Xác thực user
+    // Xac thuc user
     int user_id = db_authenticate_user(db, username, password_hash);
     
     if (user_id > 0) {
-        // Kiểm tra user đã đăng nhập và đang active chưa
+        // Kiem tra user da dang nhap va dang active chua
         if (protocol_is_user_already_logged_in(server, user_id, client_index)) {
-            // User đã đăng nhập ở client khác
+            // User da dang nhap o client khac
             protocol_send_login_response(client->fd, STATUS_ERROR, -1, "");
-            printf("Client %d đăng nhập thất bại: user_id=%d (username=%s) đã đăng nhập ở client khác\n", 
+            printf("Client %d dang nhap that bai: user_id=%d (username=%s) da dang nhap o client khac\n", 
                    client_index, user_id, username);
             return -1;
         }
 
-        // Đăng nhập thành công
+        // Dang nhap thanh cong
         client->user_id = user_id;
         strncpy(client->username, username, sizeof(client->username) - 1);
         client->username[sizeof(client->username) - 1] = '\0';
         client->state = CLIENT_STATE_LOGGED_IN;
         protocol_send_login_response(client->fd, STATUS_SUCCESS, user_id, username);
-        printf("Client %d đăng nhập thành công: user_id=%d, username=%s\n", 
+        printf("Client %d dang nhap thanh cong: user_id=%d, username=%s\n", 
                client_index, user_id, username);
         return 0;
     } else {
-        // Đăng nhập thất bại
+        // Dang nhap that bai
         protocol_send_login_response(client->fd, STATUS_AUTH_FAILED, -1, "");
-        printf("Client %d đăng nhập thất bại: username=%s\n", client_index, username);
+        printf("Client %d dang nhap that bai: username=%s\n", client_index, username);
         return -1;
     }
 }
 
 /**
- * Xử lý REGISTER_REQUEST
+ * Xu ly REGISTER_REQUEST
  */
 int protocol_handle_register(server_t* server, int client_index, const message_t* msg) {
     if (!server || client_index < 0 || client_index >= MAX_CLIENTS || !msg) {
@@ -166,16 +166,16 @@ int protocol_handle_register(server_t* server, int client_index, const message_t
         return -1;
     }
 
-    // Kiểm tra payload size
+    // Kiem tra payload size
     if (msg->length < sizeof(register_request_t)) {
-        protocol_send_register_response(client->fd, STATUS_ERROR, "Dữ liệu không hợp lệ");
+        protocol_send_register_response(client->fd, STATUS_ERROR, "Du lieu khong hop le");
         return -1;
     }
 
     // Parse payload
     register_request_t* req = (register_request_t*)msg->payload;
     
-    // Đảm bảo null-terminated
+    // Dam bao null-terminated
     char username[MAX_USERNAME_LEN];
     char password[MAX_PASSWORD_LEN];
     char email[MAX_EMAIL_LEN];
@@ -186,27 +186,27 @@ int protocol_handle_register(server_t* server, int client_index, const message_t
     strncpy(email, req->email, MAX_EMAIL_LEN - 1);
     email[MAX_EMAIL_LEN - 1] = '\0';
 
-    printf("Nhận REGISTER_REQUEST từ client %d: username=%s, email=%s\n", 
+    printf("Nhan REGISTER_REQUEST tu client %d: username=%s, email=%s\n", 
            client_index, username, email);
 
     // Validate username
     if (!auth_validate_username(username)) {
         protocol_send_register_response(client->fd, STATUS_INVALID_USERNAME, 
-                                       "Username không hợp lệ");
+                                       "Username khong hop le");
         return -1;
     }
 
     // Validate password
     if (!auth_validate_password(password)) {
         protocol_send_register_response(client->fd, STATUS_INVALID_PASSWORD, 
-                                       "Mật khẩu không hợp lệ");
+                                       "Mat khau khong hop le");
         return -1;
     }
 
-    // Kiểm tra database connection
+    // Kiem tra database connection
     if (!db) {
         protocol_send_register_response(client->fd, STATUS_ERROR, 
-                                       "Lỗi kết nối database");
+                                       "Loi ket noi database");
         return -1;
     }
 
@@ -214,33 +214,33 @@ int protocol_handle_register(server_t* server, int client_index, const message_t
     char password_hash[65];
     if (auth_hash_password(password, password_hash) != 0) {
         protocol_send_register_response(client->fd, STATUS_ERROR, 
-                                       "Lỗi xử lý mật khẩu");
+                                       "Loi xu ly mat khau");
         return -1;
     }
 
-    // Đăng ký user
+    // Dang ky user
     int user_id = db_register_user(db, username, password_hash);
     
     if (user_id > 0) {
-        // Đăng ký thành công
+        // Dang ky thanh cong
         protocol_send_register_response(client->fd, STATUS_SUCCESS, 
-                                       "Đăng ký thành công");
-        printf("Client %d đăng ký thành công: user_id=%d, username=%s\n", 
+                                       "Dang ky thanh cong");
+        printf("Client %d dang ky thanh cong: user_id=%d, username=%s\n", 
                client_index, user_id, username);
         return 0;
     } else {
-        // Đăng ký thất bại (username đã tồn tại hoặc lỗi khác)
+        // Dang ky that bai (username da ton tai hoac loi khac)
         protocol_send_register_response(client->fd, STATUS_USER_EXISTS, 
-                                       "Username đã tồn tại");
-        printf("Client %d đăng ký thất bại: username=%s\n", client_index, username);
+                                       "Username da ton tai");
+        printf("Client %d dang ky that bai: username=%s\n", client_index, username);
         return -1;
     }
 }
 
 /**
- * Xử lý LOGOUT
- * - Nếu đang trong room -> leave room (giống disconnect nhưng không close socket)
- * - Reset client state về LOGGED_OUT
+ * Xu ly LOGOUT
+ * - Neu dang trong room -> leave room (giong disconnect nhung khong close socket)
+ * - Reset client state ve LOGGED_OUT
  */
 int protocol_handle_logout(server_t* server, int client_index, const message_t* msg) {
     (void)msg;
@@ -251,7 +251,7 @@ int protocol_handle_logout(server_t* server, int client_index, const message_t* 
     client_t* client = &server->clients[client_index];
     if (!client->active) return -1;
 
-    // Nếu đang ở trong phòng thì remove khỏi phòng và broadcast update
+    // Neu dang o trong phong thi remove khoi phong va broadcast update
     if (client->user_id > 0 &&
         (client->state == CLIENT_STATE_IN_ROOM || client->state == CLIENT_STATE_IN_GAME)) {
 
@@ -262,11 +262,11 @@ int protocol_handle_logout(server_t* server, int client_index, const message_t* 
             strncpy(leaving_username, client->username, sizeof(leaving_username) - 1);
             leaving_username[sizeof(leaving_username) - 1] = '\0';
 
-            // Xóa player khỏi phòng
+            // Xoa player khoi phong
             room_remove_player(room, leaving_user_id);
 
             if (room->player_count == 0) {
-                // Xóa room khỏi server
+                // Xoa room khoi server
                 for (int i = 0; i < MAX_ROOMS; i++) {
                     if (server->rooms[i] == room) {
                         server->rooms[i] = NULL;
@@ -287,7 +287,7 @@ int protocol_handle_logout(server_t* server, int client_index, const message_t* 
     client->username[0] = '\0';
     client->state = CLIENT_STATE_LOGGED_OUT;
 
-    printf("Client %d logout thành công\n", client_index);
+    printf("Client %d logout thanh cong\n", client_index);
     return 0;
 }
 

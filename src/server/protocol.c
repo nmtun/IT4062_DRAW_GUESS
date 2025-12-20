@@ -2,7 +2,7 @@
 #include "../common/protocol.h"
 #include <stdio.h>
 
-// Forward declarations cho các handlers từ các module khác
+// Forward declarations cho cac handlers tu cac module khac
 extern int protocol_handle_login(server_t* server, int client_index, const message_t* msg);
 extern int protocol_handle_register(server_t* server, int client_index, const message_t* msg);
 extern int protocol_handle_room_list_request(server_t* server, int client_index, const message_t* msg);
@@ -16,7 +16,7 @@ extern int protocol_handle_logout(server_t* server, int client_index, const mess
 extern int protocol_handle_chat_message(server_t* server, int client_index, const message_t* msg);
 
 /**
- * Xử lý message nhận được từ client
+ * Xu ly message nhan duoc tu client
  */
 int protocol_handle_message(server_t* server, int client_index, const message_t* msg) {
     if (!server || !msg) {
@@ -58,7 +58,7 @@ int protocol_handle_message(server_t* server, int client_index, const message_t*
             return protocol_handle_chat_message(server, client_index, msg);
             
         default:
-            fprintf(stderr, "Unknown message type: 0x%02X từ client %d\n", 
+            fprintf(stderr, "Unknown message type: 0x%02X tu client %d\n", 
                     msg->type, client_index);
             return -1;
     }

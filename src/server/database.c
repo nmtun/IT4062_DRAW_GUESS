@@ -2,27 +2,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>  // <== thêm dòng này
+#include <stdarg.h>  // <== them dong nay
 #include <ctype.h>
 
 db_connection_t* db_connect(const char* host, const char* user, 
                            const char* password, const char* database) {
-    // Cấp phát bộ nhớ cho connection
+    // Cap phat bo nho cho connection
     db_connection_t* db = (db_connection_t*)malloc(sizeof(db_connection_t));
     if (!db) {
-        fprintf(stderr, "Lỗi: Không thể cấp phát bộ nhớ cho database connection\n");
+        fprintf(stderr, "Loi: Khong the cap phat bo nho cho database connection\n");
         return NULL;
     }
     
-    // Khởi tạo MySQL connection
+    // Khoi tao MySQL connection
     db->conn = mysql_init(NULL);
     if (!db->conn) {
-        fprintf(stderr, "Lỗi: Không thể khởi tạo MySQL connection\n");
+        fprintf(stderr, "Loi: Khong the khoi tao MySQL connection\n");
         free(db);
         return NULL;
     }
     
-    // Lưu thông tin kết nối
+    // Luu thong tin ket noi
     strncpy(db->host, host, sizeof(db->host) - 1);
     db->host[sizeof(db->host) - 1] = '\0';
     
@@ -35,10 +35,10 @@ db_connection_t* db_connect(const char* host, const char* user,
     strncpy(db->database, database, sizeof(db->database) - 1);
     db->database[sizeof(db->database) - 1] = '\0';
     
-    // Kết nối đến MySQL server (port 3308 từ docker-compose mapping)
+    // Ket noi den MySQL server (port 3308 tu docker-compose mapping)
     if (!mysql_real_connect(db->conn, db->host, db->user, db->password, 
                            db->database, 3308, NULL, 0)) {
-        fprintf(stderr, "Lỗi kết nối MySQL: %s\n", mysql_error(db->conn));
+        fprintf(stderr, "Loi ket noi MySQL: %s\n", mysql_error(db->conn));
         mysql_close(db->conn);
         free(db);
         return NULL;
@@ -46,12 +46,12 @@ db_connection_t* db_connect(const char* host, const char* user,
     
     // Set charset utf8mb4
     if (mysql_set_character_set(db->conn, "utf8mb4")) {
-        fprintf(stderr, "Cảnh báo: Không thể set charset utf8mb4: %s\n", 
+        fprintf(stderr, "Canh bao: Khong the set charset utf8mb4: %s\n", 
                 mysql_error(db->conn));
-        // Không return NULL vì kết nối vẫn có thể hoạt động
+        // Khong return NULL vi ket noi van co the hoat dong
     }
     
-    printf("Đã kết nối thành công đến MySQL database: %s\n", db->database);
+    printf("Da ket noi thanh cong den MySQL database: %s\n", db->database);
 
     // Best-effort schema ensure for Phase 6
     db_ensure_schema(db);
@@ -70,16 +70,16 @@ void db_disconnect(db_connection_t* db) {
     }
     
     free(db);
-    printf("Đã đóng kết nối database\n");
+    printf("Da dong ket noi database\n");
 }
 
 MYSQL_RES* db_execute_query(db_connection_t* db, const char* query, ...) {
     if (!db || !db->conn || !query) {
-        fprintf(stderr, "Lỗi: Tham số không hợp lệ\n");
+        fprintf(stderr, "Loi: Tham so khong hop le\n");
         return NULL;
     }
 
-    // Đếm số lượng placeholders (?) trong query
+    // Dem so luong placeholders (?) trong query
     int param_count = 0;
     const char* p = query;
     while (*p) {
@@ -87,23 +87,23 @@ MYSQL_RES* db_execute_query(db_connection_t* db, const char* query, ...) {
         p++;
     }
 
-    // Nếu không có placeholder, thực thi query trực tiếp
+    // Neu khong co placeholder, thuc thi query truc tiep
     if (param_count == 0) {
         if (mysql_query(db->conn, query)) {
-            fprintf(stderr, "Lỗi query: %s\n", mysql_error(db->conn));
+            fprintf(stderr, "Loi query: %s\n", mysql_error(db->conn));
             return NULL;
         }
         return mysql_store_result(db->conn);
     }
 
-    // Thu thập tham số dạng chuỗi
+    // Thu thap tham so dang chuoi
     va_list args;
     va_start(args, query);
 
     const char** param_vals = (const char**)calloc(param_count, sizeof(char*));
     unsigned long* param_lens = (unsigned long*)calloc(param_count, sizeof(unsigned long));
     if (!param_vals || !param_lens) {
-        fprintf(stderr, "Lỗi: Không thể cấp phát bộ nhớ cho parameters\n");
+        fprintf(stderr, "Loi: Khong the cap phat bo nho cho parameters\n");
         if (param_vals) free(param_vals);
         if (param_lens) free(param_lens);
         va_end(args);
@@ -118,7 +118,7 @@ MYSQL_RES* db_execute_query(db_connection_t* db, const char* query, ...) {
     }
     va_end(args);
 
-    // Ước lượng kích thước buffer (escape tối đa ~ gấp đôi) + 2 dấu '
+    // Uoc luong kich thuoc buffer (escape toi da ~ gap doi) + 2 dau '
     size_t qlen = strlen(query);
     size_t buf_size = qlen + 1;
     for (int i = 0; i < param_count; i++) {
@@ -127,19 +127,19 @@ MYSQL_RES* db_execute_query(db_connection_t* db, const char* query, ...) {
 
     char* final_sql = (char*)malloc(buf_size);
     if (!final_sql) {
-        fprintf(stderr, "Lỗi: Không thể cấp phát bộ nhớ cho final SQL\n");
+        fprintf(stderr, "Loi: Khong the cap phat bo nho cho final SQL\n");
         free(param_vals);
         free(param_lens);
         return NULL;
     }
 
-    // Xây dựng câu SQL cuối cùng
+    // Xay dung cau SQL cuoi cung
     size_t out = 0;
     int pi = 0;
     for (size_t i = 0; i < qlen; i++) {
         if (query[i] == '?' && pi < param_count) {
             final_sql[out++] = '\'';
-            // escape trực tiếp vào buffer
+            // escape truc tiep vao buffer
             out += mysql_real_escape_string(db->conn, final_sql + out, param_vals[pi], param_lens[pi]);
             final_sql[out++] = '\'';
             pi++;
@@ -149,9 +149,9 @@ MYSQL_RES* db_execute_query(db_connection_t* db, const char* query, ...) {
     }
     final_sql[out] = '\0';
 
-    // Thực thi
+    // Thuc thi
     if (mysql_query(db->conn, final_sql)) {
-        fprintf(stderr, "Lỗi query: %s\nSQL: %s\n", mysql_error(db->conn), final_sql);
+        fprintf(stderr, "Loi query: %s\nSQL: %s\n", mysql_error(db->conn), final_sql);
         free(final_sql);
         free(param_vals);
         free(param_lens);
@@ -170,76 +170,76 @@ MYSQL_RES* db_execute_query(db_connection_t* db, const char* query, ...) {
 int db_register_user(db_connection_t* db, const char* username, 
                   const char* password_hash) {
     if (!db) {
-        fprintf(stderr, "Không kết nối được tới cơ sở dữ liệu.\n");
+        fprintf(stderr, "Khong ket noi duoc toi co so du lieu.\n");
         return -1;
     }
 
     if (!username || !password_hash) {
-        fprintf(stderr, "Username và password không được để trống.\n");
+        fprintf(stderr, "Username va password khong duoc de trong.\n");
         return -1;
     }
 
-    // Kiểm tra username đã tồn tại chưa
+    // Kiem tra username da ton tai chua
     const char* check_query = "SELECT id FROM users WHERE username = ?";
     MYSQL_RES* check_res = db_execute_query(db, check_query, username);
     if (check_res && mysql_fetch_row(check_res)) {
         mysql_free_result(check_res);
-        fprintf(stderr, "Tên người dùng '%s' đã tồn tại.\n", username);
+        fprintf(stderr, "Ten nguoi dung '%s' da ton tai.\n", username);
         return -1;
     }
     if (check_res) mysql_free_result(check_res);
     
-    // Insert user mới
+    // Insert user moi
     const char* insert_query = "INSERT INTO users (username, password_hash) VALUES (?, ?)";
     MYSQL_RES* result = db_execute_query(db, insert_query, username, password_hash);
     
     if (mysql_errno(db->conn)) {
-        fprintf(stderr, "Lỗi đăng ký người dùng: %s\n", mysql_error(db->conn));
+        fprintf(stderr, "Loi dang ky nguoi dung: %s\n", mysql_error(db->conn));
         if (result) mysql_free_result(result);
         return -1;
     }
     
-    // Lấy user_id vừa insert
+    // Lay user_id vua insert
     int user_id = (int)mysql_insert_id(db->conn);
     
     if (result) mysql_free_result(result);
     
-    printf("Đăng ký thành công: user_id=%d, username=%s\n", user_id, username);
+    printf("Dang ky thanh cong: user_id=%d, username=%s\n", user_id, username);
     return user_id;
 }
 
 int db_authenticate_user(db_connection_t* db, const char* username, 
                const char* password_hash) {
     if (!db) {
-        fprintf(stderr, "Không kết nối được tới cơ sở dữ liệu.\n");
+        fprintf(stderr, "Khong ket noi duoc toi co so du lieu.\n");
         return -1;
     }
     
     if (!username || !password_hash) {
-        fprintf(stderr, "Username và password không được để trống.\n");
+        fprintf(stderr, "Username va password khong duoc de trong.\n");
         return -1;
     }
 
-    // Xác thực user
+    // Xac thuc user
     const char* query = "SELECT id FROM users WHERE username = ? AND password_hash = ?";
     MYSQL_RES* result = db_execute_query(db, query, username, password_hash);
     
     if (!result) {
-        fprintf(stderr, "Không thể thực thi query xác thực.\n");
+        fprintf(stderr, "Khong the thuc thi query xac thuc.\n");
         return -1;
     }
 
     MYSQL_ROW row = mysql_fetch_row(result);
     if (!row) {
         mysql_free_result(result);
-        fprintf(stderr, "Tên người dùng hoặc mật khẩu không đúng.\n");
+        fprintf(stderr, "Ten nguoi dung hoac mat khau khong dung.\n");
         return -1;
     }
     
     int user_id = atoi(row[0]);
     mysql_free_result(result);
     
-    printf("Đăng nhập thành công: user_id=%d, username=%s\n", user_id, username);
+    printf("Dang nhap thanh cong: user_id=%d, username=%s\n", user_id, username);
     return user_id;
 }
 
@@ -265,14 +265,14 @@ static int difficulty_is_valid(const char* d) {
 
 int db_load_words_from_file(db_connection_t* db, const char* filepath) {
     if (!db || !db->conn || !filepath) {
-        fprintf(stderr, "db_load_words_from_file: tham số không hợp lệ\n");
+        fprintf(stderr, "db_load_words_from_file: tham so khong hop le\n");
         return -1;
     }
 
     FILE* f = fopen(filepath, "r");
     if (!f) {
-        // Không in cảnh báo ở đây vì có thể đang thử nhiều path
-        // Caller sẽ xử lý việc in cảnh báo nếu tất cả đều thất bại
+        // Khong in canh bao o day vi co the dang thu nhieu path
+        // Caller se xu ly viec in canh bao neu tat ca deu that bai
         return -1;
     }
 
@@ -306,7 +306,7 @@ int db_load_words_from_file(db_connection_t* db, const char* filepath) {
         if (!cat || cat[0] == '\0') cat = "general";
 
         // Upsert theo word
-        // Lưu ý: db_execute_query chỉ bind string, nên ta truyền chuỗi cho ENUM/difficulty luôn được.
+        // Luu y: db_execute_query chi bind string, nen ta truyen chuoi cho ENUM/difficulty luon duoc.
         const char* q =
             "INSERT INTO words (word, difficulty, category) "
             "VALUES (?, ?, ?) "
@@ -314,7 +314,7 @@ int db_load_words_from_file(db_connection_t* db, const char* filepath) {
 
         MYSQL_RES* r = db_execute_query(db, q, word, diff, cat);
         if (mysql_errno(db->conn)) {
-            fprintf(stderr, "db_load_words_from_file: lỗi insert word='%s': %s\n", word, mysql_error(db->conn));
+            fprintf(stderr, "db_load_words_from_file: loi insert word='%s': %s\n", word, mysql_error(db->conn));
             if (r) mysql_free_result(r);
             continue;
         }
@@ -323,13 +323,13 @@ int db_load_words_from_file(db_connection_t* db, const char* filepath) {
     }
 
     fclose(f);
-    printf("Words system: đã nạp %d từ từ '%s' vào database\n", inserted, filepath);
+    printf("Words system: da nap %d tu tu '%s' vao database\n", inserted, filepath);
     return inserted;
 }
 
 int db_get_random_word(db_connection_t* db, const char* difficulty, char* out_word, size_t out_word_size) {
     if (!db || !db->conn || !out_word || out_word_size == 0) {
-        fprintf(stderr, "db_get_random_word: tham số không hợp lệ\n");
+        fprintf(stderr, "db_get_random_word: tham so khong hop le\n");
         return -1;
     }
 
@@ -354,7 +354,7 @@ int db_get_random_word(db_connection_t* db, const char* difficulty, char* out_wo
     MYSQL_ROW row = mysql_fetch_row(res);
     if (!row || !row[0] || !row[1]) {
         mysql_free_result(res);
-        fprintf(stderr, "db_get_random_word: không có từ phù hợp trong database\n");
+        fprintf(stderr, "db_get_random_word: khong co tu phu hop trong database\n");
         return -1;
     }
 
@@ -363,7 +363,7 @@ int db_get_random_word(db_connection_t* db, const char* difficulty, char* out_wo
     snprintf(out_word, out_word_size, "%s", word);
     mysql_free_result(res);
 
-    // tăng times_used
+    // tang times_used
     MYSQL_RES* r2 = db_execute_query(db, "UPDATE words SET times_used = times_used + 1 WHERE id = ?", id_str);
     if (r2) mysql_free_result(r2);
 

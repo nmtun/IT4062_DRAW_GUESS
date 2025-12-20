@@ -9,24 +9,24 @@
 #include <errno.h>
 #include <arpa/inet.h>
 
-// Khởi tạo server
+// Khoi tao server
 int server_init(server_t *server, int port) {
-    // Khởi tạo cấu trúc server
+    // Khoi tao cau truc server
     memset(server, 0, sizeof(server_t));
     server->port = port;
     server->client_count = 0;
     server->max_fd = 0;
 
-    // Tạo socket
+    // Tao socket
     server->socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server->socket_fd < 0) {
         perror("socket() failed");
         return -1;
     }
 
-    // Thiết lập tùy chọn socket để tái sử dụng địa chỉ
-    // Khi chạy test thường dùng Ctrl + C để ngắt server. 
-    // Nếu muốn chạy lại ngay mà không bị lỗi server already in use thì cần sử dụng option này
+    // Thiet lap tuy chon socket de tai su dung dia chi
+    // Khi chay test thuong dung Ctrl + C de ngat server. 
+    // Neu muon chay lai ngay ma khong bi loi server already in use thi can su dung option nay
     
     int opt = 1;
     if (setsockopt(server->socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
@@ -35,7 +35,7 @@ int server_init(server_t *server, int port) {
         return -1;
     }
 
-    // Cấu hình địa chỉ
+    // Cau hinh dia chi
     memset(&server->address, 0, sizeof(server->address));
     server->address.sin_family = AF_INET;
     server->address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
@@ -51,22 +51,22 @@ int server_init(server_t *server, int port) {
     return 0;
 }
 
-// Bắt đầu lắng nghe kết nối
+// Bat dau lang nghe ket noi
 int server_listen(server_t *server) {
-    //Set hàng đợi kết nối tối đa là 5 để tránh quá tải
+    // Set hang doi ket noi toi da la 5 de tranh qua tai
     if (listen(server->socket_fd, 5) < 0) {
         perror("listen() failed");
         return -1;
     }
 
-    printf("Server đang lắng nghe trên port %d\n", server->port);
+    printf("Server dang lang nghe tren port %d\n", server->port);
     return 0;
 }
 
-// Thêm client vào danh sách
+// Them client vao danh sach
 int server_add_client(server_t *server, int client_fd) {
     for (int i = 0; i < MAX_CLIENTS; i++) {
-        //Nếu client thứ i chưa được sử dụng thì thêm vào danh sách
+        // Neu client thu i chua duoc su dung thi them vao danh sach
         if (!server->clients[i].active) {
             server->clients[i].fd = client_fd;
             server->clients[i].active = 1;
@@ -75,22 +75,22 @@ int server_add_client(server_t *server, int client_fd) {
             server->clients[i].state = CLIENT_STATE_LOGGED_OUT;
             server->client_count++;
             
-            //Cập nhật max_fd mới nếu cần để select() hoạt động đúng
+            // Cap nhat max_fd moi neu can de select() hoat dong dung
             if (client_fd > server->max_fd) {
                 server->max_fd = client_fd;
             }
             
-            printf("Client mới kết nối (fd: %d, index: %d)\n", client_fd, i);
+            printf("Client moi ket noi (fd: %d, index: %d)\n", client_fd, i);
             return i;
         }
     }
     
-    printf("Đã đạt số lượng client tối đa\n");
+    printf("Da dat so luong client toi da\n");
     close(client_fd);
     return -1;
 }
 
-// Xóa client khỏi danh sách
+// Xoa client khoi danh sach
 void server_remove_client(server_t *server, int client_index) {
     if (client_index >= 0 && client_index < MAX_CLIENTS && server->clients[client_index].active) {
         close(server->clients[client_index].fd);
@@ -100,11 +100,11 @@ void server_remove_client(server_t *server, int client_index) {
         server->clients[client_index].username[0] = '\0';
         server->clients[client_index].state = CLIENT_STATE_LOGGED_OUT;
         server->client_count--;
-        printf("Client đã ngắt kết nối (index: %d)\n", client_index);
+        printf("Client da ngat ket noi (index: %d)\n", client_index);
     }
 }
 
-// Chấp nhận kết nối mới
+// Chap nhan ket noi moi
 int server_accept_client(server_t *server) {
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
@@ -117,12 +117,12 @@ int server_accept_client(server_t *server) {
 
     char client_ip[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &client_addr.sin_addr, client_ip, INET_ADDRSTRLEN);
-    printf("Kết nối mới từ %s:%d\n", client_ip, ntohs(client_addr.sin_port));
+    printf("Ket noi moi tu %s:%d\n", client_ip, ntohs(client_addr.sin_port));
 
     return server_add_client(server, client_fd);
 }
 
-// Xử lý dữ liệu từ client
+// Xu ly du lieu tu client
 void server_handle_client_data(server_t *server, int client_index) {
     uint8_t buffer[BUFFER_SIZE];
     int client_fd = server->clients[client_index].fd;
@@ -130,7 +130,7 @@ void server_handle_client_data(server_t *server, int client_index) {
     ssize_t bytes_read = recv(client_fd, buffer, BUFFER_SIZE, 0);
     
     if (bytes_read <= 0) {
-        // Lỗi hoặc kết nối đóng
+        // Loi hoac ket noi dong
         server_handle_disconnect(server, client_index);
         return;
     }
@@ -138,27 +138,27 @@ void server_handle_client_data(server_t *server, int client_index) {
     // Parse message
     message_t msg;
     if (protocol_parse_message(buffer, bytes_read, &msg) == 0) {
-        // Xử lý message
+        // Xu ly message
         protocol_handle_message(server, client_index, &msg);
         
-        // Giải phóng payload
+        // Giai phong payload
         if (msg.payload) {
             free(msg.payload);
         }
     } else {
-        fprintf(stderr, "Lỗi parse message từ client %d\n", client_index);
+        fprintf(stderr, "Loi parse message tu client %d\n", client_index);
     }
 }
 
 /**
- * Tìm room mà client đang ở trong
+ * Tim room ma client dang o trong
  */
 room_t* server_find_room_by_user(server_t* server, int user_id) {
     if (!server || user_id <= 0) {
         return NULL;
     }
 
-    // Duyệt qua tất cả rooms
+    // Duyet qua tat ca rooms
     for (int i = 0; i < MAX_ROOMS; i++) {
         if (server->rooms[i] != NULL) {
             if (room_has_player(server->rooms[i], user_id)) {
@@ -171,7 +171,7 @@ room_t* server_find_room_by_user(server_t* server, int user_id) {
 }
 
 /**
- * Broadcast message đến tất cả clients trong phòng
+ * Broadcast message den tat ca clients trong phong
  */
 int server_broadcast_to_room(server_t* server, int room_id, uint8_t msg_type, 
                              const uint8_t* payload, uint16_t payload_len, 
@@ -180,7 +180,7 @@ int server_broadcast_to_room(server_t* server, int room_id, uint8_t msg_type,
         return -1;
     }
 
-    // Tìm room
+    // Tim room
     room_t* room = NULL;
     for (int i = 0; i < MAX_ROOMS; i++) {
         if (server->rooms[i] != NULL && server->rooms[i]->room_id == room_id) {
@@ -190,26 +190,26 @@ int server_broadcast_to_room(server_t* server, int room_id, uint8_t msg_type,
     }
 
     if (!room) {
-        fprintf(stderr, "Không tìm thấy phòng với room_id=%d\n", room_id);
+        fprintf(stderr, "Khong tim thay phong voi room_id=%d\n", room_id);
         return -1;
     }
 
-    // Gửi message đến tất cả clients trong phòng
+    // Gui message den tat ca clients trong phong
     int sent_count = 0;
     for (int i = 0; i < MAX_CLIENTS; i++) {
         client_t* client = &server->clients[i];
         
-        // Bỏ qua client không active
+        // Bo qua client khong active
         if (!client->active) {
             continue;
         }
 
-        // Bỏ qua client bị loại trừ
+        // Bo qua client bi loai tru
         if (exclude_user_id > 0 && client->user_id == exclude_user_id) {
             continue;
         }
 
-        // Kiểm tra client có trong phòng không
+        // Kiem tra client co trong phong khong
         if (room_has_player(room, client->user_id)) {
             if (protocol_send_message(client->fd, msg_type, payload, payload_len) == 0) {
                 sent_count++;
@@ -217,13 +217,13 @@ int server_broadcast_to_room(server_t* server, int room_id, uint8_t msg_type,
         }
     }
 
-    printf("Đã broadcast message type 0x%02X đến phòng '%s' (ID: %d) - %d clients nhận được\n",
+    printf("Da broadcast message type 0x%02X den phong '%s' (ID: %d) - %d clients nhan duoc\n",
            msg_type, room->room_name, room_id, sent_count);
     
     return sent_count;
 }
 
-// Xử lý ngắt kết nối
+// Xu ly ngat ket noi
 void server_handle_disconnect(server_t *server, int client_index) {
     if (client_index < 0 || client_index >= MAX_CLIENTS) {
         return;
@@ -234,16 +234,16 @@ void server_handle_disconnect(server_t *server, int client_index) {
         return;
     }
 
-    // Nếu client đang trong phòng, xóa khỏi phòng
+    // Neu client dang trong phong, xoa khoi phong
     if (client->user_id > 0 && 
         (client->state == CLIENT_STATE_IN_ROOM || client->state == CLIENT_STATE_IN_GAME)) {
         
         room_t* room = server_find_room_by_user(server, client->user_id);
         if (room) {
-            printf("Client %d (user_id=%d) đang disconnect, xóa khỏi phòng '%s' (ID: %d)\n",
+            printf("Client %d (user_id=%d) dang disconnect, xoa khoi phong '%s' (ID: %d)\n",
                    client_index, client->user_id, room->room_name, room->room_id);
 
-            // Nếu đang chơi và người rời là drawer -> end round ngay để game không bị kẹt
+            // Neu dang choi va nguoi roi la drawer -> end round ngay de game khong bi ket
             int was_playing = (room->state == ROOM_PLAYING && room->game != NULL);
             int was_drawer = (was_playing && room->game->drawer_id == client->user_id);
             char word_before[64];
@@ -253,24 +253,24 @@ void server_handle_disconnect(server_t *server, int client_index) {
                 word_before[sizeof(word_before) - 1] = '\0';
             }
             
-            // Xóa player khỏi phòng
+            // Xoa player khoi phong
             room_remove_player(room, client->user_id);
             
-            // Lưu thông tin phòng trước khi có thể destroy
+            // Luu thong tin phong truoc khi co the destroy
             char room_name[ROOM_NAME_MAX_LENGTH];
             int room_id = room->room_id;
             strncpy(room_name, room->room_name, ROOM_NAME_MAX_LENGTH - 1);
             room_name[ROOM_NAME_MAX_LENGTH - 1] = '\0';
             
-            // Lưu thông tin user đang disconnect
+            // Luu thong tin user dang disconnect
             int leaving_user_id = client->user_id;
             char leaving_username[32];
             strncpy(leaving_username, client->username, sizeof(leaving_username) - 1);
             leaving_username[sizeof(leaving_username) - 1] = '\0';
             
-            // Nếu phòng trống, xóa phòng
+            // Neu phong trong, xoa phong
             if (room->player_count == 0) {
-                // Tìm và xóa phòng khỏi server
+                // Tim va xoa phong khoi server
                 for (int i = 0; i < MAX_ROOMS; i++) {
                     if (server->rooms[i] == room) {
                         server->rooms[i] = NULL;
@@ -279,40 +279,40 @@ void server_handle_disconnect(server_t *server, int client_index) {
                     }
                 }
                 room_destroy(room);
-                printf("Phòng '%s' (ID: %d) đã bị xóa vì không còn người chơi\n",
+                printf("Phong '%s' (ID: %d) da bi xoa vi khong con nguoi choi\n",
                        room_name, room_id);
                 
-                // Broadcast danh sách phòng cho tất cả clients đã đăng nhập
+                // Broadcast danh sach phong cho tat ca clients da dang nhap
                 protocol_broadcast_room_list(server);
             } else {
-                // Broadcast ROOM_PLAYERS_UPDATE với danh sách đầy đủ (đã bao gồm tất cả thông tin phòng)
+                // Broadcast ROOM_PLAYERS_UPDATE voi danh sach day du (da bao gom tat ca thong tin phong)
                 protocol_broadcast_room_players_update(server, room, 1, // 1 = LEAVE
                                                       leaving_user_id, leaving_username, 
                                                       -1);
             }
 
-            // Xử lý drawer rời phòng trong game (sau khi đã broadcast danh sách players)
+            // Xu ly drawer roi phong trong game (sau khi da broadcast danh sach players)
             if (was_drawer && room->game && word_before[0] != '\0') {
                 protocol_handle_round_timeout(server, room, word_before);
             }
         }
     }
 
-    // Xóa client khỏi danh sách
+    // Xoa client khoi danh sach
     server_remove_client(server, client_index);
 }
 
-// Xử lý vòng lặp sự kiện với select()
+// Xu ly vong lap su kien voi select()
 void server_event_loop(server_t *server) {
     while (1) {
-        // Khởi tạo tập hợp file descriptor
+        // Khoi tao tap hop file descriptor
         FD_ZERO(&server->read_fds);
         
-        // Thêm server socket vào tập hợp
+        // Them server socket vao tap hop
         FD_SET(server->socket_fd, &server->read_fds);
         server->max_fd = server->socket_fd;
         
-        // Thêm tất cả client sockets vào tập hợp
+        // Them tat ca client sockets vao tap hop
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (server->clients[i].active) {
                 FD_SET(server->clients[i].fd, &server->read_fds);
@@ -322,8 +322,8 @@ void server_event_loop(server_t *server) {
             }
         }
         
-        // Sử dụng select() để chờ sự kiện
-        // Có timeout để tick game timeout (Phase 5 - #19)
+        // Su dung select() de cho su kien
+        // Co timeout de tick game timeout (Phase 5 - #19)
         struct timeval tv;
         tv.tv_sec = 1;
         tv.tv_usec = 0;
@@ -334,24 +334,24 @@ void server_event_loop(server_t *server) {
             break;
         }
         
-        // Kiểm tra kết nối mới từ server socket
+        // Kiem tra ket noi moi tu server socket
         if (FD_ISSET(server->socket_fd, &server->read_fds)) {
             server_accept_client(server);
         }
         
-        // Kiểm tra dữ liệu từ các client
+        // Kiem tra du lieu tu cac client
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (server->clients[i].active && FD_ISSET(server->clients[i].fd, &server->read_fds)) {
                 server_handle_client_data(server, i);
             }
         }
 
-        // Tick: kiểm tra timeout cho tất cả phòng đang chơi
+        // Tick: kiem tra timeout cho tat ca phong dang choi
         for (int r = 0; r < MAX_ROOMS; r++) {
             room_t* room = server->rooms[r];
             if (!room || room->state != ROOM_PLAYING || !room->game) continue;
 
-            // giữ lại word trước khi game_end_round reset state
+            // giu lai word truoc khi game_end_round reset state
             char word_before[64];
             memset(word_before, 0, sizeof(word_before));
             strncpy(word_before, room->game->current_word, sizeof(word_before) - 1);
@@ -366,20 +366,20 @@ void server_event_loop(server_t *server) {
     }
 }
 
-// Dọn dẹp và đóng server
+// Don dep va dong server
 void server_cleanup(server_t *server) {
-    // Đóng tất cả client connections
+    // Dong tat ca client connections
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (server->clients[i].active) {
             close(server->clients[i].fd);
         }
     }
     
-    // Đóng server socket
+    // Dong server socket
     if (server->socket_fd >= 0) {
         close(server->socket_fd);
     }
     
-    printf("Server đã đóng\n");
+    printf("Server da dong\n");
 }
 

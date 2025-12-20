@@ -8,33 +8,33 @@
 #include <errno.h>
 
 /**
- * Parse message từ buffer nhận được
+ * Parse message tu buffer nhan duoc
  */
 int protocol_parse_message(const uint8_t* buffer, size_t buffer_len, message_t* msg_out) {
     if (!buffer || !msg_out || buffer_len < 3) {
         return -1;
     }
 
-    // Đọc type (1 byte)
+    // Doc type (1 byte)
     msg_out->type = buffer[0];
 
-    // Đọc length (2 bytes, network byte order)
+    // Doc length (2 bytes, network byte order)
     uint16_t length_network;
     memcpy(&length_network, buffer + 1, 2);
     msg_out->length = ntohs(length_network);
 
-    // Kiểm tra độ dài hợp lệ
+    // Kiem tra do dai hop le
     if (msg_out->length > buffer_len - 3) {
-        fprintf(stderr, "Lỗi: Payload length (%d) vượt quá buffer còn lại (%zu)\n", 
+        fprintf(stderr, "Loi: Payload length (%d) vuot qua buffer con lai (%zu)\n", 
                 msg_out->length, buffer_len - 3);
         return -1;
     }
 
-    // Cấp phát bộ nhớ cho payload
+    // Cap phat bo nho cho payload
     if (msg_out->length > 0) {
         msg_out->payload = (uint8_t*)malloc(msg_out->length);
         if (!msg_out->payload) {
-            fprintf(stderr, "Lỗi: Không thể cấp phát bộ nhớ cho payload\n");
+            fprintf(stderr, "Loi: Khong the cap phat bo nho cho payload\n");
             return -1;
         }
         memcpy(msg_out->payload, buffer + 3, msg_out->length);
@@ -46,7 +46,7 @@ int protocol_parse_message(const uint8_t* buffer, size_t buffer_len, message_t* 
 }
 
 /**
- * Tạo message theo format protocol
+ * Tao message theo format protocol
  */
 int protocol_create_message(uint8_t type, const uint8_t* payload, uint16_t payload_len, uint8_t* buffer_out) {
     if (!buffer_out) {
@@ -69,13 +69,13 @@ int protocol_create_message(uint8_t type, const uint8_t* payload, uint16_t paylo
 }
 
 /**
- * Gửi message đến client
+ * Gui message den client
  */
 int protocol_send_message(int client_fd, uint8_t type, const uint8_t* payload, uint16_t payload_len) {
     uint8_t buffer[BUFFER_SIZE];
     
     if (3 + payload_len > BUFFER_SIZE) {
-        fprintf(stderr, "Lỗi: Message quá lớn (%d bytes)\n", 3 + payload_len);
+        fprintf(stderr, "Loi: Message qua lon (%d bytes)\n", 3 + payload_len);
         return -1;
     }
 
@@ -91,7 +91,7 @@ int protocol_send_message(int client_fd, uint8_t type, const uint8_t* payload, u
     }
 
     if (sent != msg_len) {
-        fprintf(stderr, "Cảnh báo: Chỉ gửi được %zd/%d bytes\n", sent, msg_len);
+        fprintf(stderr, "Canh bao: Chi gui duoc %zd/%d bytes\n", sent, msg_len);
         return -1;
     }
 

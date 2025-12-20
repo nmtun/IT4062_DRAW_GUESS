@@ -6,7 +6,7 @@
 #include <ctype.h>
 
 
-// Kiểm tra tính hợp lệ của username
+// Kiem tra tinh hop le cua username
 bool auth_validate_username(const char* username) {
     if (!username) {
         return false;
@@ -16,20 +16,20 @@ bool auth_validate_username(const char* username) {
     
     // Check length: 3-32 characters
     if (len < 3 || len > 32) {
-        fprintf(stderr, "Lỗi: Username phải có độ dài từ 3-32 ký tự\n");
+        fprintf(stderr, "Loi: Username phai co do dai tu 3-32 ky tu\n");
         return false;
     }
 
     // Must start with letter or underscore
     if (!isalpha(username[0]) && username[0] != '_') {
-        fprintf(stderr, "Lỗi: Username phải bắt đầu bằng chữ cái hoặc dấu gạch dưới\n");
+        fprintf(stderr, "Loi: Username phai bat dau bang chu cai hoac dau gach duoi\n");
         return false;
     }
 
     // Only alphanumeric and underscore
     for (size_t i = 0; i < len; i++) {
         if (!isalnum(username[i]) && username[i] != '_') {
-            fprintf(stderr, "Lỗi: Username chỉ được chứa chữ cái, số và dấu gạch dưới\n");
+            fprintf(stderr, "Loi: Username chi duoc chua chu cai, so va dau gach duoi\n");
             return false;
         }
     }
@@ -38,7 +38,7 @@ bool auth_validate_username(const char* username) {
 }
 
 
-// Kiểm tra tính hợp lệ của mật khẩu
+// Kiem tra tinh hop le cua mat khau
 bool auth_validate_password(const char* password) {
     if (!password) {
         return false;
@@ -48,7 +48,7 @@ bool auth_validate_password(const char* password) {
     
     // Check length: 6-64 characters
     if (len < 6 || len > 64) {
-        fprintf(stderr, "Lỗi: Mật khẩu phải có độ dài từ 6-64 ký tự\n");
+        fprintf(stderr, "Loi: Mat khau phai co do dai tu 6-64 ky tu\n");
         return false;
     }
 
@@ -66,7 +66,7 @@ bool auth_validate_password(const char* password) {
     }
 
     if (!has_letter || !has_number) {
-        fprintf(stderr, "Lỗi: Mật khẩu phải chứa ít nhất một chữ cái và một số\n");
+        fprintf(stderr, "Loi: Mat khau phai chua it nhat mot chu cai va mot so\n");
         return false;
     }
 
@@ -74,10 +74,10 @@ bool auth_validate_password(const char* password) {
 }
 
 
-// Hash mật khẩu sử dụng SHA256
+// Hash mat khau su dung SHA256
 int auth_hash_password(const char* password, char* hash_output) {
     if (!password || !hash_output) {
-        fprintf(stderr, "Lỗi: Tham số không hợp lệ\n");
+        fprintf(stderr, "Loi: Tham so khong hop le\n");
         return -1;
     }
 
@@ -87,7 +87,7 @@ int auth_hash_password(const char* password, char* hash_output) {
 }
 
 
-//Xác thực mật khẩu bằng cách so sánh hash
+// Xac thuc mat khau bang cach so sanh hash
 bool auth_verify_password(const char* password, const char* hash) {
     if (!password || !hash) {
         return false;

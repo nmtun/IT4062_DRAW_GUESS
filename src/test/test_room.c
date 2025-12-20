@@ -5,8 +5,8 @@
 #include "../include/server.h"
 
 void test_room_create() {
-    printf("Test 1: Tạo phòng\n");
-    room_t* room = room_create("Phòng test", 1, 4, 3);
+    printf("Test 1: Tao phong\n");
+    room_t* room = room_create("Phong test", 1, 4, 3);
     assert(room != NULL);
     assert(room->room_id == 1);
     assert(room->owner_id == 1);
@@ -14,66 +14,66 @@ void test_room_create() {
     assert(room->max_players == 4);
     assert(room->total_rounds == 3);
     assert(room->state == ROOM_WAITING);
-    printf("Tạo phòng thành công\n");
+    printf("Tao phong thanh cong\n");
     room_destroy(room);
 }
 
 void test_room_add_player() {
-    printf("\nTest 2: Thêm người chơi\n");
-    room_t* room = room_create("Phòng test", 1, 4, 3);
+    printf("\nTest 2: Them nguoi choi\n");
+    room_t* room = room_create("Phong test", 1, 4, 3);
     
     assert(room_add_player(room, 2) == true);
     assert(room->player_count == 2);
     assert(room_has_player(room, 2) == true);
-    printf("Thêm player 2 thành công\n");
+    printf("Them player 2 thanh cong\n");
     
     assert(room_add_player(room, 3) == true);
     assert(room->player_count == 3);
-    printf("Thêm player 3 thành công\n");
+    printf("Them player 3 thanh cong\n");
     
-    // Test thêm duplicate
+    // Test them duplicate
     assert(room_add_player(room, 2) == false);
-    printf("Không thể thêm player trùng\n");
+    printf("Khong the them player trung\n");
     
     room_destroy(room);
 }
 
 void test_room_full() {
-    printf("\nTest 3: Phòng đầy\n");
-    room_t* room = room_create("Phòng nhỏ", 1, 3, 5);
+    printf("\nTest 3: Phong day\n");
+    room_t* room = room_create("Phong nho", 1, 3, 5);
     
     room_add_player(room, 2);
     room_add_player(room, 3);
     assert(room_is_full(room) == true);
-    printf("Phòng đã đầy\n");    
+    printf("Phong da day\n");    
     
     assert(room_add_player(room, 4) == false);
-    printf("Không thể thêm player khi phòng đầy\n");
+    printf("Khong the them player khi phong day\n");
     
     room_destroy(room);
 }
 
 void test_room_remove_player() {
-    printf("\nTest 4: Xóa người chơi\n");
-    room_t* room = room_create("Phòng test", 1, 4, 3);
+    printf("\nTest 4: Xoa nguoi choi\n");
+    room_t* room = room_create("Phong test", 1, 4, 3);
     room_add_player(room, 2);
     room_add_player(room, 3);
     
     assert(room_remove_player(room, 2) == true);
     assert(room->player_count == 2);
     assert(room_has_player(room, 2) == false);
-    printf("Xóa player 2 thành công\n");
+    printf("Xoa player 2 thanh cong\n");
     
-    // Test xóa player không tồn tại
+    // Test xoa player khong ton tai
     assert(room_remove_player(room, 999) == false);
-    printf("Không thể xóa player không tồn tại\n");
+    printf("Khong the xoa player khong ton tai\n");
     
     room_destroy(room);
 }
 
 void test_room_transfer_ownership() {
-    printf("\nTest 5: Chuyển owner\n");
-    room_t* room = room_create("Phòng test", 1, 4, 3);
+    printf("\nTest 5: Chuyen owner\n");
+    room_t* room = room_create("Phong test", 1, 4, 3);
     room_add_player(room, 2);
     room_add_player(room, 3);
     
@@ -81,78 +81,78 @@ void test_room_transfer_ownership() {
     assert(room_transfer_ownership(room, 2) == true);
     assert(room_is_owner(room, 2) == true);
     assert(room_is_owner(room, 1) == false);
-    printf("Chuyển owner từ user 1 sang user 2 thành công\n");
+    printf("Chuyen owner tu user 1 sang user 2 thanh cong\n");
     
-    // Test chuyển owner cho người không trong phòng
+    // Test chuyen owner cho nguoi khong trong phong
     assert(room_transfer_ownership(room, 999) == false);
-    printf("Không thể chuyển owner cho người không trong phòng\n");
+    printf("Khong the chuyen owner cho nguoi khong trong phong\n");
     
     room_destroy(room);
 }
 
 void test_room_auto_transfer_ownership() {
-    printf("\nTest 6: Tự động chuyển owner khi owner rời phòng\n");
-    room_t* room = room_create("Phòng test", 1, 4, 3);
+    printf("\nTest 6: Tu dong chuyen owner khi owner roi phong\n");
+    room_t* room = room_create("Phong test", 1, 4, 3);
     room_add_player(room, 2);
     room_add_player(room, 3);
     
     assert(room->owner_id == 1);
     room_remove_player(room, 1);
     assert(room->owner_id == 2);
-    printf("Owner tự động chuyển sang player tiếp theo\n");
+    printf("Owner tu dong chuyen sang player tiep theo\n");
     
     room_destroy(room);
 }
 
 void test_room_start_game() {
-    printf("\nTest 7: Bắt đầu game\n");
-    room_t* room = room_create("Phòng test", 1, 4, 3);
+    printf("\nTest 7: Bat dau game\n");
+    room_t* room = room_create("Phong test", 1, 4, 3);
     
-    // Test start game với 1 người
+    // Test start game voi 1 nguoi
     assert(room_start_game(room) == false);
-    printf("Không thể start game với 1 người\n");
+    printf("Khong the start game voi 1 nguoi\n");
     
-    // Thêm người chơi thứ 2
+    // Them nguoi choi thu 2
     room_add_player(room, 2);
     assert(room_start_game(room) == true);
     assert(room->state == ROOM_PLAYING);
-    printf("Start game thành công với 2 người\n");
+    printf("Start game thanh cong voi 2 nguoi\n");
     
-    // Test không thể start game đang chơi
+    // Test khong the start game dang choi
     assert(room_start_game(room) == false);
-    printf("Không thể start game đang chơi\n");
+    printf("Khong the start game dang choi\n");
     
     room_destroy(room);
 }
 
 void test_room_end_game() {
-    printf("\nTest 8: Kết thúc game\n");
-    room_t* room = room_create("Phòng test", 1, 4, 3);
+    printf("\nTest 8: Ket thuc game\n");
+    room_t* room = room_create("Phong test", 1, 4, 3);
     room_add_player(room, 2);
     room_start_game(room);
     
     room_end_game(room);
     assert(room->state == ROOM_FINISHED);
-    printf("Kết thúc game thành công\n");
+    printf("Ket thuc game thanh cong\n");
     
     room_destroy(room);
 }
 
 void test_room_join_while_playing() {
-    printf("\nTest 9: Không thể join phòng đang chơi\n");
-    room_t* room = room_create("Phòng test", 1, 4, 3);
+    printf("\nTest 9: Khong the join phong dang choi\n");
+    room_t* room = room_create("Phong test", 1, 4, 3);
     room_add_player(room, 2);
     room_start_game(room);
     
     assert(room_add_player(room, 3) == false);
-    printf("Không thể join phòng đang chơi\n");
+    printf("Khong the join phong dang choi\n");
     
     room_destroy(room);
 }
 
 void test_room_get_info() {
-    printf("\nTest 10: Lấy thông tin phòng\n");
-    room_t* room = room_create("Phòng VIP", 100, 8, 5);
+    printf("\nTest 10: Lay thong tin phong\n");
+    room_t* room = room_create("Phong VIP", 100, 8, 5);
     room_add_player(room, 101);
     room_add_player(room, 102);
     
@@ -160,41 +160,41 @@ void test_room_get_info() {
     room_get_info(room, &info);
     
     assert(info.room_id == room->room_id);
-    assert(strcmp(info.room_name, "Phòng VIP") == 0);
+    assert(strcmp(info.room_name, "Phong VIP") == 0);
     assert(info.player_count == 3);
     assert(info.max_players == 8);
     assert(info.state == ROOM_WAITING);
     assert(info.owner_id == 100);
-    printf("Lấy thông tin phòng thành công\n");
+    printf("Lay thong tin phong thanh cong\n");
     
     room_destroy(room);
 }
 
 void test_room_get_list() {
-    printf("\nTest 11: Lấy danh sách phòng từ server\n");
+    printf("\nTest 11: Lay danh sach phong tu server\n");
     
-    // Khởi tạo mock server
+    // Khoi tao mock server
     server_t server;
     memset(&server, 0, sizeof(server_t));
     
-    // Tạo 3 phòng
-    server.rooms[0] = room_create("Phòng 1", 1, 4, 3);
-    server.rooms[1] = room_create("Phòng 2", 2, 6, 5);
-    server.rooms[2] = room_create("Phòng 3", 3, 8, 7);
+    // Tao 3 phong
+    server.rooms[0] = room_create("Phong 1", 1, 4, 3);
+    server.rooms[1] = room_create("Phong 2", 2, 6, 5);
+    server.rooms[2] = room_create("Phong 3", 3, 8, 7);
     server.room_count = 3;
     
-    // Lấy danh sách
+    // Lay danh sach
     room_info_t room_list[10];
     int count = room_get_list(&server, room_list, 10);
     
     assert(count == 3);
-    assert(strcmp(room_list[0].room_name, "Phòng 1") == 0);
-    assert(strcmp(room_list[1].room_name, "Phòng 2") == 0);
-    assert(strcmp(room_list[2].room_name, "Phòng 3") == 0);
+    assert(strcmp(room_list[0].room_name, "Phong 1") == 0);
+    assert(strcmp(room_list[1].room_name, "Phong 2") == 0);
+    assert(strcmp(room_list[2].room_name, "Phong 3") == 0);
     assert(room_list[0].player_count == 1);
     assert(room_list[1].max_players == 6);
     assert(room_list[2].owner_id == 3);
-    printf("Lấy danh sách %d phòng thành công\n", count);
+    printf("Lay danh sach %d phong thanh cong\n", count);
     
     // Cleanup
     room_destroy(server.rooms[0]);
@@ -203,7 +203,7 @@ void test_room_get_list() {
 }
 
 void test_room_get_list_empty() {
-    printf("\nTest 12: Lấy danh sách khi không có phòng\n");
+    printf("\nTest 12: Lay danh sach khi khong co phong\n");
     
     server_t server;
     memset(&server, 0, sizeof(server_t));
@@ -212,29 +212,29 @@ void test_room_get_list_empty() {
     int count = room_get_list(&server, room_list, 10);
     
     assert(count == 0);
-    printf("Danh sách rỗng khi không có phòng\n");
+    printf("Danh sach rong khi khong co phong\n");
 }
 
 void test_room_get_list_with_limit() {
-    printf("\nTest 13: Lấy danh sách với giới hạn\n");
+    printf("\nTest 13: Lay danh sach voi gioi han\n");
     
     server_t server;
     memset(&server, 0, sizeof(server_t));
     
-    // Tạo 5 phòng
+    // Tao 5 phong
     for (int i = 0; i < 5; i++) {
         char name[32];
-        snprintf(name, sizeof(name), "Phòng %d", i + 1);
+        snprintf(name, sizeof(name), "Phong %d", i + 1);
         server.rooms[i] = room_create(name, i + 1, 4, 3);
     }
     server.room_count = 5;
     
-    // Chỉ lấy 3 phòng đầu
+    // Chi lay 3 phong dau
     room_info_t room_list[3];
     int count = room_get_list(&server, room_list, 3);
     
     assert(count == 3);
-    printf("Lấy đúng %d/%d phòng theo giới hạn\n", count, 5);
+    printf("Lay dung %d/%d phong theo gioi han\n", count, 5);
     
     // Cleanup
     for (int i = 0; i < 5; i++) {

@@ -51,7 +51,7 @@ int protocol_handle_chat_message(server_t* server, int client_index, const messa
     }
     if (text[0] == '\0') return -1;
 
-    // Filter guess words: nếu đang chơi và message == current_word thì treat như guess (không broadcast chat)
+    // Filter guess words: neu dang choi va message == current_word thi treat nhu guess (khong broadcast chat)
     if (room->state == ROOM_PLAYING && room->game && room->game->current_word[0] != '\0') {
         if (client->user_id != room->game->drawer_id) {
             // delegate to guess flow

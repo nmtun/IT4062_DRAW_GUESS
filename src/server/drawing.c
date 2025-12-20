@@ -3,7 +3,7 @@
 #include <arpa/inet.h>
 
 /**
- * Parse dữ liệu vẽ từ payload nhị phân
+ * Parse du lieu ve tu payload nhi phan
  * Format: [action:1][x1:2][y1:2][x2:2][y2:2][color:4][width:1] = 14 bytes
  */
 int drawing_parse_action(const uint8_t *payload, size_t payload_len, draw_action_t *action)
@@ -13,7 +13,7 @@ int drawing_parse_action(const uint8_t *payload, size_t payload_len, draw_action
         return -1;
     }
 
-    // Kiểm tra độ dài payload
+    // Kiem tra do dai payload
     if (payload_len < 14)
     {
         return -1;
@@ -22,7 +22,7 @@ int drawing_parse_action(const uint8_t *payload, size_t payload_len, draw_action
     // Parse action type
     action->action = (draw_action_type_t)payload[0];
 
-    // Parse tọa độ (network byte order)
+    // Parse toa do (network byte order)
     uint16_t x1_net, y1_net, x2_net, y2_net;
     memcpy(&x1_net, payload + 1, 2);
     memcpy(&y1_net, payload + 3, 2);
@@ -52,7 +52,7 @@ int drawing_parse_action(const uint8_t *payload, size_t payload_len, draw_action
 }
 
 /**
- * Serialize dữ liệu vẽ sang định dạng nhị phân
+ * Serialize du lieu ve sang dinh dang nhi phan
  */
 int drawing_serialize_action(const draw_action_t *action, uint8_t *buffer_out)
 {
@@ -69,7 +69,7 @@ int drawing_serialize_action(const draw_action_t *action, uint8_t *buffer_out)
     // Action type
     buffer_out[0] = (uint8_t)action->action;
 
-    // Tọa độ (chuyển sang network byte order)
+    // Toa do (chuyen sang network byte order)
     uint16_t x1_net = htons(action->x1);
     uint16_t y1_net = htons(action->y1);
     uint16_t x2_net = htons(action->x2);
@@ -80,18 +80,18 @@ int drawing_serialize_action(const draw_action_t *action, uint8_t *buffer_out)
     memcpy(buffer_out + 5, &x2_net, 2);
     memcpy(buffer_out + 7, &y2_net, 2);
 
-    // Color (chuyển sang network byte order)
+    // Color (chuyen sang network byte order)
     uint32_t color_net = htonl(action->color);
     memcpy(buffer_out + 9, &color_net, 4);
 
     // Width
     buffer_out[13] = action->width;
 
-    return 14; // Tổng số bytes đã ghi
+    return 14; // Tong so bytes da ghi
 }
 
 /**
- * Kiểm tra tính hợp lệ của các tham số hành động vẽ
+ * Kiem tra tinh hop le cua cac tham so hanh dong ve
  */
 bool drawing_validate_action(const draw_action_t *action)
 {
@@ -100,7 +100,7 @@ bool drawing_validate_action(const draw_action_t *action)
         return false;
     }
 
-    // Kiểm tra loại hành động
+    // Kiem tra loai hanh dong
     if (action->action != DRAW_ACTION_MOVE &&
         action->action != DRAW_ACTION_LINE &&
         action->action != DRAW_ACTION_CLEAR &&
@@ -109,23 +109,23 @@ bool drawing_validate_action(const draw_action_t *action)
         return false;
     }
 
-    // Với hành động CLEAR, tọa độ và độ rộng không quan trọng
+    // Voi hanh dong CLEAR, toa do va do rong khong quan trong
     if (action->action == DRAW_ACTION_CLEAR)
     {
         return true;
     }
 
-    // Với hành động ERASE, cần tọa độ và độ rộng hợp lệ
+    // Voi hanh dong ERASE, can toa do va do rong hop le
     if (action->action == DRAW_ACTION_ERASE)
     {
-        // Kiểm tra tọa độ
+        // Kiem tra toa do
         if (action->x1 >= MAX_CANVAS_WIDTH || action->y1 >= MAX_CANVAS_HEIGHT ||
             action->x2 >= MAX_CANVAS_WIDTH || action->y2 >= MAX_CANVAS_HEIGHT)
         {
             return false;
         }
 
-        // Kiểm tra độ rộng bút xóa
+        // Kiem tra do rong but xoa
         if (action->width < MIN_BRUSH_WIDTH || action->width > MAX_BRUSH_WIDTH)
         {
             return false;
@@ -134,14 +134,14 @@ bool drawing_validate_action(const draw_action_t *action)
         return true;
     }
 
-    // Kiểm tra tọa độ
+    // Kiem tra toa do
     if (action->x1 >= MAX_CANVAS_WIDTH || action->y1 >= MAX_CANVAS_HEIGHT ||
         action->x2 >=  MAX_CANVAS_WIDTH || action->y2 >= MAX_CANVAS_HEIGHT)
     {
         return false;
     }
 
-    // Kiểm tra độ rộng bút vẽ
+    // Kiem tra do rong but ve
     if (action->width < MIN_BRUSH_WIDTH || action->width > MAX_BRUSH_WIDTH)
     {
         return false;
@@ -151,7 +151,7 @@ bool drawing_validate_action(const draw_action_t *action)
 }
 
 /**
- * Tạo hành động CLEAR (xóa canvas)
+ * Tao hanh dong CLEAR (xoa canvas)
  */
 void drawing_create_clear_action(draw_action_t *action)
 {
@@ -165,7 +165,7 @@ void drawing_create_clear_action(draw_action_t *action)
 }
 
 /**
- * Tạo hành động LINE (vẽ đường)
+ * Tao hanh dong LINE (ve duong)
  */
 void drawing_create_line_action(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2,
                                 uint32_t color, uint8_t width, draw_action_t *action)
@@ -185,8 +185,8 @@ void drawing_create_line_action(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t 
 }
 
 /**
- * Tạo hành động ERASE (xóa từng phần)
- * Color sẽ được set thành 0 (không quan trọng vì client sẽ dùng destination-out)
+ * Tao hanh dong ERASE (xoa tung phan)
+ * Color se duoc set thanh 0 (khong quan trong vi client se dung destination-out)
  */
 void drawing_create_erase_action(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2,
                                  uint8_t width, draw_action_t *action)
@@ -201,6 +201,6 @@ void drawing_create_erase_action(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t
     action->y1 = y1;
     action->x2 = x2;
     action->y2 = y2;
-    action->color = 0;  // Không quan trọng, client sẽ dùng destination-out
+    action->color = 0;  // Khong quan trong, client se dung destination-out
     action->width = width;
 }

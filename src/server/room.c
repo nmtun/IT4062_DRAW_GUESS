@@ -9,40 +9,40 @@
 
 extern db_connection_t* db;
 
-// Room ID tự động tăng
+// Room ID tu dong tang
 static int next_room_id = 1;
 
-// Tạo phòng chơi mới
+// Tao phong choi moi
 room_t *room_create(const char *room_name, int owner_id, int max_players, int rounds)
 {
     // Validate input
     if (!room_name || owner_id <= 0)
     {
-        fprintf(stderr, "Tham số không hợp lệ khi tạo phòng\n");
+        fprintf(stderr, "Tham so khong hop le khi tao phong\n");
         return NULL;
     }
 
     if (max_players < MIN_PLAYERS_PER_ROOM || max_players > MAX_PLAYERS_PER_ROOM)
     {
-        fprintf(stderr, "Số người chơi phải từ %d-%d\n", MIN_PLAYERS_PER_ROOM, MAX_PLAYERS_PER_ROOM);
+        fprintf(stderr, "So nguoi choi phai tu %d-%d\n", MIN_PLAYERS_PER_ROOM, MAX_PLAYERS_PER_ROOM);
         return NULL;
     }
 
     if (rounds < 1 || rounds > MAX_ROUNDS)
     {
-        fprintf(stderr, "Số round phải từ 1-%d\n", MAX_ROUNDS);
+        fprintf(stderr, "So round phai tu 1-%d\n", MAX_ROUNDS);
         return NULL;
     }
 
-    // Cấp phát bộ nhớ cho phòng
+    // Cap phat bo nho cho phong
     room_t *room = (room_t *)malloc(sizeof(room_t));
     if (!room)
     {
-        fprintf(stderr, "Không thể cấp phát bộ nhớ cho phòng\n");
+        fprintf(stderr, "Khong the cap phat bo nho cho phong\n");
         return NULL;
     }
 
-    // Khởi tạo phòng
+    // Khoi tao phong
     room->room_id = next_room_id++;
     room->db_room_id = 0;
     strncpy(room->room_name, room_name, ROOM_NAME_MAX_LENGTH - 1);
@@ -55,7 +55,7 @@ room_t *room_create(const char *room_name, int owner_id, int max_players, int ro
     room->game = NULL;
     room->created_at = time(NULL);
 
-    // Khởi tạo array người chơi
+    // Khoi tao array nguoi choi
     room->player_count = 0;
     for (int i = 0; i < MAX_PLAYERS_PER_ROOM; i++)
     {
@@ -64,7 +64,7 @@ room_t *room_create(const char *room_name, int owner_id, int max_players, int ro
         room->active_players[i] = 0;
     }
 
-    // Thêm owner làm người chơi đầu tiên (active)
+    // Them owner lam nguoi choi dau tien (active)
     room->players[0] = owner_id;
     room->active_players[0] = 1; // Owner active ngay
     room->player_count = 1;
@@ -83,13 +83,13 @@ room_t *room_create(const char *room_name, int owner_id, int max_players, int ro
         }
     }
 
-    printf("Phòng '%s' (ID: %d) đã được tạo bởi user %d\n",
+    printf("Phong '%s' (ID: %d) da duoc tao boi user %d\n",
            room->room_name, room->room_id, owner_id);
 
     return room;
 }
 
-// Hủy phòng chơi
+// Huy phong choi
 void room_destroy(room_t *room)
 {
     if (!room)
@@ -97,9 +97,9 @@ void room_destroy(room_t *room)
         return;
     }
 
-    printf("Đang hủy phòng '%s' (ID: %d)\n", room->room_name, room->room_id);
+    printf("Dang huy phong '%s' (ID: %d)\n", room->room_name, room->room_id);
 
-    // Free game state nếu có
+    // Free game state neu co
     if (room->game)
     {
         game_destroy(room->game);
@@ -109,7 +109,7 @@ void room_destroy(room_t *room)
     free(room);
 }
 
-// Thêm người chơi vào phòng
+// Them nguoi choi vao phong
 bool room_add_player(room_t *room, int user_id)
 {
     if (!room || user_id <= 0)
@@ -117,47 +117,47 @@ bool room_add_player(room_t *room, int user_id)
         return false;
     }
 
-    // Kiểm tra phòng đã đầy chưa
+    // Kiem tra phong da day chua
     if (room->player_count >= room->max_players)
     {
-        fprintf(stderr, "Phòng '%s' đã đầy\n", room->room_name);
+        fprintf(stderr, "Phong '%s' da day\n", room->room_name);
         return false;
     }
 
-    // Kiểm tra người chơi đã trong phòng chưa
+    // Kiem tra nguoi choi da trong phong chua
     if (room_has_player(room, user_id))
     {
-        fprintf(stderr, "User %d đã có trong phòng\n", user_id);
+        fprintf(stderr, "User %d da co trong phong\n", user_id);
         return false;
     }
 
-    // Thêm player vào array người chơi
+    // Them player vao array nguoi choi
     room->players[room->player_count] = user_id;
 
-    // Nếu phòng đang chơi, đánh dấu là đang chờ (inactive)
-    // Sẽ được active vào round tiếp theo
+    // Neu phong dang choi, danh dau la dang cho (inactive)
+    // Se duoc active vao round tiep theo
     if (room->state == ROOM_PLAYING)
     {
-        room->active_players[room->player_count] = 0; // Chờ đến round sau
+        room->active_players[room->player_count] = 0; // Cho den round sau
         if (db && room->db_room_id > 0) {
             int db_player_id = db_add_room_player(db, room->db_room_id, user_id, room->player_count + 1);
             if (db_player_id > 0) room->db_player_ids[room->player_count] = db_player_id;
         }
         room->player_count++;
-        printf("User %d đã tham gia phòng '%s' (ID: %d) và sẽ chơi từ round tiếp theo. Số người: %d/%d\n",
+        printf("User %d da tham gia phong '%s' (ID: %d) va se choi tu round tiep theo. So nguoi: %d/%d\n",
                user_id, room->room_name, room->room_id,
                room->player_count, room->max_players);
     }
     else
     {
-        // Phòng chưa chơi, active ngay
+        // Phong chua choi, active ngay
         room->active_players[room->player_count] = 1;
         if (db && room->db_room_id > 0) {
             int db_player_id = db_add_room_player(db, room->db_room_id, user_id, room->player_count + 1);
             if (db_player_id > 0) room->db_player_ids[room->player_count] = db_player_id;
         }
         room->player_count++;
-        printf("User %d đã tham gia phòng '%s' (ID: %d). Số người: %d/%d\n",
+        printf("User %d da tham gia phong '%s' (ID: %d). So nguoi: %d/%d\n",
                user_id, room->room_name, room->room_id,
                room->player_count, room->max_players);
     }
@@ -165,7 +165,7 @@ bool room_add_player(room_t *room, int user_id)
     return true;
 }
 
-// Xóa người chơi khỏi phòng
+// Xoa nguoi choi khoi phong
 bool room_remove_player(room_t *room, int user_id)
 {
     if (!room || user_id <= 0)
@@ -173,7 +173,7 @@ bool room_remove_player(room_t *room, int user_id)
         return false;
     }
 
-    // Tìm index của player
+    // Tim index cua player
     int player_index = -1;
     for (int i = 0; i < room->player_count; i++)
     {
@@ -186,11 +186,11 @@ bool room_remove_player(room_t *room, int user_id)
 
     if (player_index == -1)
     {
-        fprintf(stderr, "User %d không có trong phòng\n", user_id);
+        fprintf(stderr, "User %d khong co trong phong\n", user_id);
         return false;
     }
 
-    // Xóa player bằng cách shift array người chơi
+    // Xoa player bang cach shift array nguoi choi
     for (int i = player_index; i < room->player_count - 1; i++)
     {
         room->players[i] = room->players[i + 1];
@@ -202,33 +202,33 @@ bool room_remove_player(room_t *room, int user_id)
     room->db_player_ids[room->player_count - 1] = 0;
     room->player_count--;
 
-    printf("User %d đã rời phòng '%s' (ID: %d). Số người còn lại: %d\n",
+    printf("User %d da roi phong '%s' (ID: %d). So nguoi con lai: %d\n",
            user_id, room->room_name, room->room_id, room->player_count);
 
-    // Nếu là owner thì chuyển owner cho người khác
+    // Neu la owner thi chuyen owner cho nguoi khac
     if (user_id == room->owner_id && room->player_count > 0)
     {
         room->owner_id = room->players[0];
-        printf("Quyền chủ phòng '%s' được chuyển cho user %d\n",
+        printf("Quyen chu phong '%s' duoc chuyen cho user %d\n",
                room->room_name, room->owner_id);
     }
 
-    // Nếu đang chơi game, cần xử lý logic game
+    // Neu dang choi game, can xu ly logic game
     if (room->state == ROOM_PLAYING)
     {
-        // Nếu còn < 2 người chơi thì end game ngay để tránh treo state
+        // Neu con < 2 nguoi choi thi end game ngay de tranh treo state
         if (room->player_count < 2) {
             room_end_game(room);
-            printf("Game kết thúc do không đủ người chơi\n");
+            printf("Game ket thuc do khong du nguoi choi\n");
         } else {
-            printf("Player rời phòng trong lúc đang chơi (server sẽ xử lý round tiếp theo nếu cần)\n");
+            printf("Player roi phong trong luc dang choi (server se xu ly round tiep theo neu can)\n");
         }
     }
 
     return true;
 }
 
-// Kiểm tra người chơi có trong phòng không
+// Kiem tra nguoi choi co trong phong khong
 bool room_has_player(room_t *room, int user_id)
 {
     if (!room || user_id <= 0)
@@ -247,7 +247,7 @@ bool room_has_player(room_t *room, int user_id)
     return false;
 }
 
-// Kiểm tra người chơi có phải là owner không
+// Kiem tra nguoi choi co phai la owner khong
 bool room_is_owner(room_t *room, int user_id)
 {
     if (!room || user_id <= 0)
@@ -258,7 +258,7 @@ bool room_is_owner(room_t *room, int user_id)
     return room->owner_id == user_id;
 }
 
-// Kiểm tra phòng đã đầy chưa
+// Kiem tra phong da day chua
 bool room_is_full(room_t *room)
 {
     if (!room)
@@ -269,7 +269,7 @@ bool room_is_full(room_t *room)
     return room->player_count >= room->max_players;
 }
 
-// Chuyển quyền owner cho người chơi khác
+// Chuyen quyen owner cho nguoi choi khac
 bool room_transfer_ownership(room_t *room, int new_owner_id)
 {
     if (!room || new_owner_id <= 0)
@@ -277,23 +277,23 @@ bool room_transfer_ownership(room_t *room, int new_owner_id)
         return false;
     }
 
-    // Kiểm tra new_owner có trong phòng không
+    // Kiem tra new_owner co trong phong khong
     if (!room_has_player(room, new_owner_id))
     {
-        fprintf(stderr, "User %d không có trong phòng\n", new_owner_id);
+        fprintf(stderr, "User %d khong co trong phong\n", new_owner_id);
         return false;
     }
 
     int old_owner_id = room->owner_id;
     room->owner_id = new_owner_id;
 
-    printf("Quyền chủ phòng '%s' được chuyển từ user %d sang user %d\n",
+    printf("Quyen chu phong '%s' duoc chuyen tu user %d sang user %d\n",
            room->room_name, old_owner_id, new_owner_id);
 
     return true;
 }
 
-// Bắt đầu game
+// Bat dau game
 bool room_start_game(room_t *room)
 {
     if (!room)
@@ -301,21 +301,21 @@ bool room_start_game(room_t *room)
         return false;
     }
 
-    // Kiểm tra trạng thái phòng
+    // Kiem tra trang thai phong
     if (room->state != ROOM_WAITING)
     {
-        fprintf(stderr, "Phòng không ở trạng thái WAITING\n");
+        fprintf(stderr, "Phong khong o trang thai WAITING\n");
         return false;
     }
 
-    // Kiểm tra số người chơi
+    // Kiem tra so nguoi choi
     if (room->player_count < 2)
     {
-        fprintf(stderr, "Cần ít nhất 2 người chơi để bắt đầu game\n");
+        fprintf(stderr, "Can it nhat 2 nguoi choi de bat dau game\n");
         return false;
     }
 
-    // Đánh dấu tất cả người chơi hiện tại là active
+    // Danh dau tat ca nguoi choi hien tai la active
     for (int i = 0; i < room->player_count; i++)
     {
         room->active_players[i] = 1;
@@ -323,15 +323,15 @@ bool room_start_game(room_t *room)
 
     room->state = ROOM_PLAYING;
 
-    printf("Game trong phòng '%s' (ID: %d) đã bắt đầu với %d người chơi\n",
+    printf("Game trong phong '%s' (ID: %d) da bat dau voi %d nguoi choi\n",
            room->room_name, room->room_id, room->player_count);
 
-    // Phase 5 - #18: Khởi tạo game_state_t (round sẽ được start ở handler protocol - mục 19)
+    // Phase 5 - #18: Khoi tao game_state_t (round se duoc start o handler protocol - muc 19)
     if (!room->game) {
-        // yêu cầu mới: mỗi lượt vẽ 30s
+        // yeu cau moi: moi luot ve 30s
         room->game = game_init(room, room->total_rounds, 30);
         if (!room->game) {
-            fprintf(stderr, "Không thể khởi tạo game state\n");
+            fprintf(stderr, "Khong the khoi tao game state\n");
             room->state = ROOM_WAITING;
             return false;
         }
@@ -340,7 +340,7 @@ bool room_start_game(room_t *room)
     return true;
 }
 
-// Kết thúc game
+// Ket thuc game
 void room_end_game(room_t *room)
 {
     if (!room)
@@ -348,7 +348,7 @@ void room_end_game(room_t *room)
         return;
     }
 
-    printf("Game trong phòng '%s' (ID: %d) đã kết thúc\n",
+    printf("Game trong phong '%s' (ID: %d) da ket thuc\n",
            room->room_name, room->room_id);
 
     // Free game state
@@ -358,11 +358,11 @@ void room_end_game(room_t *room)
         room->game = NULL;
     }
 
-    // Kết thúc trạng thái PLAYING
+    // Ket thuc trang thai PLAYING
     room->state = ROOM_FINISHED;
 }
 
-// Lấy thông tin cơ bản của phòng cho sảnh chờ
+// Lay thong tin co ban cua phong cho sanh cho
 void room_get_info(room_t *room, room_info_t *room_info)
 {
     if (!room || !room_info)
@@ -379,7 +379,7 @@ void room_get_info(room_t *room, room_info_t *room_info)
     room_info->owner_id = room->owner_id;
 }
 
-// Lấy danh sách tất cả phòng trong server
+// Lay danh sach tat ca phong trong server
 int room_get_list(server_t *server, room_info_t *room_info_array, int max_rooms)
 {
     if (!server || !room_info_array || max_rooms <= 0)
@@ -389,9 +389,9 @@ int room_get_list(server_t *server, room_info_t *room_info_array, int max_rooms)
 
     int count = 0;
 
-    // Duyệt qua tất cả rooms trong server
+    // Duyet qua tat ca rooms trong server
     for (int i = 0; i < 50 && count < max_rooms; i++)
-    { // 50 là MAX_ROOMS
+    { // 50 la MAX_ROOMS
         if (server->rooms[i] != NULL)
         {
             room_get_info(server->rooms[i], &room_info_array[count]);

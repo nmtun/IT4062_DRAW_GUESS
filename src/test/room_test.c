@@ -28,7 +28,7 @@ static bool waiting_for_response = false;
 static uint8_t expected_response_type = 0;
 
 /**
- * Kết nối đến server
+ * Ket noi den server
  */
 int connect_to_server(const char* ip, int port) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -54,12 +54,12 @@ int connect_to_server(const char* ip, int port) {
         return -1;
     }
 
-    printf("✓ Đã kết nối đến server %s:%d\n", ip, port);
+    printf("✓ Da ket noi den server %s:%d\n", ip, port);
     return fd;
 }
 
 /**
- * Gửi message đến server
+ * Gui message den server
  */
 int send_message(int fd, uint8_t type, const uint8_t* payload, uint16_t payload_len) {
     uint8_t buffer[1024];
@@ -84,28 +84,28 @@ int send_message(int fd, uint8_t type, const uint8_t* payload, uint16_t payload_
 }
 
 /**
- * Xử lý một message đã nhận được
- * @return 1 nếu là broadcast message (tiếp tục đợi), 0 nếu là response mong đợi, -1 nếu lỗi
+ * Xu ly mot message da nhan duoc
+ * @return 1 neu la broadcast message (tiep tuc doi), 0 neu la response mong doi, -1 neu loi
  */
 static int process_message(uint8_t* buffer, uint16_t length, uint8_t type, uint8_t* expected_type) {
-    // Xử lý ROOM_LIST_RESPONSE như broadcast message (khi server tự động gửi)
+    // Xu ly ROOM_LIST_RESPONSE nhu broadcast message (khi server tu dong gui)
     if (type == MSG_ROOM_LIST_RESPONSE) {
-        // Nếu đang đợi response này, xử lý như response bình thường
+        // Neu dang doi response nay, xu ly nhu response binh thuong
         if (expected_type && *expected_type == MSG_ROOM_LIST_RESPONSE) {
-            // Xử lý như response bình thường (sẽ xử lý ở switch case bên dưới)
+            // Xu ly nhu response binh thuong (se xu ly o switch case ben duoi)
         } else {
-            // Đây là broadcast message, xử lý ngay
+            // Day la broadcast message, xu ly ngay
             if (length >= sizeof(room_list_response_t)) {
                 room_list_response_t* header = (room_list_response_t*)(buffer + 3);
                 uint16_t room_count = ntohs(header->room_count);
                 
-                printf("\n[ROOM_LIST_BROADCAST] Danh sách phòng đã được cập nhật (%d phòng)\n", room_count);
+                printf("\n[ROOM_LIST_BROADCAST] Danh sach phong da duoc cap nhat (%d phong)\n", room_count);
                 
                 if (room_count > 0) {
                     room_info_protocol_t* rooms = (room_info_protocol_t*)(buffer + 3 + sizeof(room_list_response_t));
                     
                     printf("%-5s %-20s %-8s %-8s %-10s %-8s\n", 
-                           "ID", "Tên phòng", "Số người", "Tối đa", "Trạng thái", "Owner");
+                           "ID", "Ten phong", "So nguoi", "Toi da", "Trang thai", "Owner");
                     printf("------------------------------------------------------------\n");
                     
                     for (int i = 0; i < room_count; i++) {
@@ -122,12 +122,12 @@ static int process_message(uint8_t* buffer, uint16_t length, uint8_t type, uint8
                     }
                 }
                 printf("==========================================\n\n");
-                return 1; // Đã xử lý, tiếp tục đợi
+                return 1; // Da xu ly, tiep tuc doi
             }
         }
     }
     
-    // Xử lý ROOM_UPDATE ngay lập tức (broadcast message)
+    // Xu ly ROOM_UPDATE ngay lap tuc (broadcast message)
     if (type == MSG_ROOM_UPDATE) {
         if (length >= sizeof(room_info_protocol_t)) {
             room_info_protocol_t* room_info = (room_info_protocol_t*)(buffer + 3);
@@ -136,14 +136,14 @@ static int process_message(uint8_t* buffer, uint16_t length, uint8_t type, uint8
             const char* state_str = (state == 0) ? "WAITING" : 
                                    (state == 1) ? "PLAYING" : "FINISHED";
             
-            printf("\n[ROOM_UPDATE] Phòng %d: %s - %d/%d người chơi (%s)\n",
+            printf("\n[ROOM_UPDATE] Phong %d: %s - %d/%d nguoi choi (%s)\n",
                    room_id, room_info->room_name, 
                    room_info->player_count, room_info->max_players, state_str);
-            return 1; // Đã xử lý, tiếp tục đợi
+            return 1; // Da xu ly, tiep tuc doi
         }
     }
     
-    // Xử lý ROOM_PLAYERS_UPDATE (broadcast message với danh sách đầy đủ)
+    // Xu ly ROOM_PLAYERS_UPDATE (broadcast message voi danh sach day du)
     if (type == MSG_ROOM_PLAYERS_UPDATE) {
         if (length >= sizeof(room_players_update_t)) {
             room_players_update_t* update = (room_players_update_t*)(buffer + 3);
@@ -156,34 +156,34 @@ static int process_message(uint8_t* buffer, uint16_t length, uint8_t type, uint8
             const char* state_str = (state == 0) ? "WAITING" : 
                                    (state == 1) ? "PLAYING" : "FINISHED";
             
-            const char* action_str = (action == 0) ? "đã tham gia" : "đã rời";
-            printf("\n[ROOM_PLAYERS_UPDATE] Phòng %d (%s): %s (ID: %d) %s phòng\n",
+            const char* action_str = (action == 0) ? "da tham gia" : "da roi";
+            printf("\n[ROOM_PLAYERS_UPDATE] Phong %d (%s): %s (ID: %d) %s phong\n",
                    room_id, update->room_name, update->changed_username, changed_user_id, action_str);
-            printf("  Trạng thái: %s | Số người: %d/%d | Owner: %d\n",
+            printf("  Trang thai: %s | So nguoi: %d/%d | Owner: %d\n",
                    state_str, player_count, update->max_players, owner_id);
             
-            // Hiển thị danh sách người chơi hiện tại
+            // Hien thi danh sach nguoi choi hien tai
             player_info_protocol_t* players = (player_info_protocol_t*)(buffer + 3 + sizeof(room_players_update_t));
-            printf("Danh sách người chơi hiện tại (%d người):\n", player_count);
+            printf("Danh sach nguoi choi hien tai (%d nguoi):\n", player_count);
             for (int i = 0; i < player_count; i++) {
                 int32_t pid = (int32_t)ntohl((uint32_t)players[i].user_id);
                 const char* owner_mark = players[i].is_owner ? " (Owner)" : "";
                 printf("  - %s (ID: %d)%s\n", players[i].username, pid, owner_mark);
             }
             printf("\n");
-            return 1; // Đã xử lý, tiếp tục đợi
+            return 1; // Da xu ly, tiep tuc doi
         }
     }
     
-    // Kiểm tra message type mong đợi (chỉ khi đang đợi response)
+    // Kiem tra message type mong doi (chi khi dang doi response)
     if (expected_type && type != *expected_type) {
-        printf("✗ Lỗi: Nhận message type 0x%02X, mong đợi 0x%02X\n", type, *expected_type);
+        printf("✗ Loi: Nhan message type 0x%02X, mong doi 0x%02X\n", type, *expected_type);
         return -1;
     }
     
-    printf("✓ Nhận response: type=0x%02X, length=%d\n", type, length);
+    printf("✓ Nhan response: type=0x%02X, length=%d\n", type, length);
     
-    // Parse response dựa trên type
+    // Parse response dua tren type
     switch (type) {
         case MSG_LOGIN_RESPONSE: {
             if (length >= sizeof(login_response_t)) {
@@ -192,13 +192,13 @@ static int process_message(uint8_t* buffer, uint16_t length, uint8_t type, uint8
                 int32_t user_id = (int32_t)ntohl((uint32_t)resp->user_id);
                 
                 if (status == STATUS_SUCCESS) {
-                    printf("✓ Đăng nhập thành công! user_id=%d, username=%s\n", 
+                    printf("✓ Dang nhap thanh cong! user_id=%d, username=%s\n", 
                            user_id, resp->username);
                     current_user_id = user_id;
                     is_logged_in = true;
                     return 0;
                 } else {
-                    printf("✗ Đăng nhập thất bại (status=0x%02X)\n", status);
+                    printf("✗ Dang nhap that bai (status=0x%02X)\n", status);
                     return -1;
                 }
             }
@@ -210,13 +210,13 @@ static int process_message(uint8_t* buffer, uint16_t length, uint8_t type, uint8
                 room_list_response_t* header = (room_list_response_t*)(buffer + 3);
                 uint16_t room_count = ntohs(header->room_count);
                 
-                printf("\n=== DANH SÁCH PHÒNG (%d phòng) ===\n", room_count);
+                printf("\n=== DANH SACH PHONG (%d phong) ===\n", room_count);
                 
                 if (room_count > 0) {
                     room_info_protocol_t* rooms = (room_info_protocol_t*)(buffer + 3 + sizeof(room_list_response_t));
                     
                     printf("%-5s %-20s %-8s %-8s %-10s %-8s\n", 
-                           "ID", "Tên phòng", "Số người", "Tối đa", "Trạng thái", "Owner");
+                           "ID", "Ten phong", "So nguoi", "Toi da", "Trang thai", "Owner");
                     printf("------------------------------------------------------------\n");
                     
                     for (int i = 0; i < room_count; i++) {
@@ -245,12 +245,12 @@ static int process_message(uint8_t* buffer, uint16_t length, uint8_t type, uint8
                 int32_t room_id = (int32_t)ntohl((uint32_t)resp->room_id);
                 
                 if (status == STATUS_SUCCESS) {
-                    printf("✓ Tạo phòng thành công! room_id=%d\n", room_id);
+                    printf("✓ Tao phong thanh cong! room_id=%d\n", room_id);
                     printf("  Message: %s\n", resp->message);
                     current_room_id = room_id;
                     return 0;
                 } else {
-                    printf("✗ Tạo phòng thất bại: %s\n", resp->message);
+                    printf("✗ Tao phong that bai: %s\n", resp->message);
                     return -1;
                 }
             }
@@ -264,12 +264,12 @@ static int process_message(uint8_t* buffer, uint16_t length, uint8_t type, uint8
                 int32_t room_id = (int32_t)ntohl((uint32_t)resp->room_id);
                 
                 if (status == STATUS_SUCCESS) {
-                    printf("✓ Tham gia phòng thành công! room_id=%d\n", room_id);
+                    printf("✓ Tham gia phong thanh cong! room_id=%d\n", room_id);
                     printf("  Message: %s\n", resp->message);
                     current_room_id = room_id;
                     return 0;
                 } else {
-                    printf("✗ Tham gia phòng thất bại: %s\n", resp->message);
+                    printf("✗ Tham gia phong that bai: %s\n", resp->message);
                     return -1;
                 }
             }
@@ -282,12 +282,12 @@ static int process_message(uint8_t* buffer, uint16_t length, uint8_t type, uint8
                 uint8_t status = resp->status;
                 
                 if (status == STATUS_SUCCESS) {
-                    printf("✓ Rời phòng thành công!\n");
+                    printf("✓ Roi phong thanh cong!\n");
                     printf("  Message: %s\n", resp->message);
                     current_room_id = -1;
                     return 0;
                 } else {
-                    printf("✗ Rời phòng thất bại: %s\n", resp->message);
+                    printf("✗ Roi phong that bai: %s\n", resp->message);
                     return -1;
                 }
             }
@@ -295,7 +295,7 @@ static int process_message(uint8_t* buffer, uint16_t length, uint8_t type, uint8
         }
         
         default:
-            printf("⚠ Nhận message type không xử lý: 0x%02X\n", type);
+            printf("⚠ Nhan message type khong xu ly: 0x%02X\n", type);
             break;
     }
     
@@ -303,18 +303,18 @@ static int process_message(uint8_t* buffer, uint16_t length, uint8_t type, uint8
 }
 
 /**
- * Nhận và parse response (blocking - dùng cho đợi response cụ thể)
+ * Nhan va parse response (blocking - dung cho doi response cu the)
  */
 int receive_response(int fd, uint8_t* expected_type) {
     uint8_t buffer[1024];
     
-    // Đánh dấu đang đợi response để receiver thread không can thiệp
+    // Danh dau dang doi response de receiver thread khong can thiep
     if (expected_type) {
         waiting_for_response = true;
         expected_response_type = *expected_type;
     }
     
-    // Vòng lặp để xử lý tất cả messages (bao gồm broadcast messages)
+    // Vong lap de xu ly tat ca messages (bao gom broadcast messages)
     while (1) {
         pthread_mutex_lock(&socket_mutex);
         ssize_t bytes_read = recv(fd, buffer, sizeof(buffer), 0);
@@ -323,7 +323,7 @@ int receive_response(int fd, uint8_t* expected_type) {
         if (bytes_read <= 0) {
             waiting_for_response = false;
             if (bytes_read == 0) {
-                printf("✗ Server đã đóng kết nối\n");
+                printf("✗ Server da dong ket noi\n");
             } else {
                 perror("recv() failed");
             }
@@ -331,7 +331,7 @@ int receive_response(int fd, uint8_t* expected_type) {
         }
         
         if (bytes_read < 3) {
-            printf("✗ Lỗi: Message quá ngắn (%zd bytes)\n", bytes_read);
+            printf("✗ Loi: Message qua ngan (%zd bytes)\n", bytes_read);
             waiting_for_response = false;
             return -1;
         }
@@ -343,14 +343,14 @@ int receive_response(int fd, uint8_t* expected_type) {
         
         int result = process_message(buffer, length, type, expected_type);
         if (result == 0) {
-            // Đã nhận được response mong đợi
+            // Da nhan duoc response mong doi
             waiting_for_response = false;
             return 0;
         } else if (result == 1) {
-            // Broadcast message, tiếp tục đợi
+            // Broadcast message, tiep tuc doi
             continue;
         } else {
-            // Lỗi
+            // Loi
             waiting_for_response = false;
             return -1;
         }
@@ -358,23 +358,23 @@ int receive_response(int fd, uint8_t* expected_type) {
 }
 
 /**
- * Thread function: Liên tục nhận messages từ server (background)
- * Chỉ xử lý broadcast messages (ROOM_UPDATE, ROOM_PLAYERS_UPDATE, ROOM_LIST_RESPONSE)
+ * Thread function: Lien tuc nhan messages tu server (background)
+ * Chi xu ly broadcast messages (ROOM_UPDATE, ROOM_PLAYERS_UPDATE, ROOM_LIST_RESPONSE)
  */
 void* message_receiver_thread(void* arg) {
     int fd = *(int*)arg;
     uint8_t buffer[1024];
     
-    printf("[Receiver Thread] Bắt đầu lắng nghe broadcast messages...\n");
+    printf("[Receiver Thread] Bat dau lang nghe broadcast messages...\n");
     
     while (receiver_running) {
-        // Kiểm tra nếu main thread đang đợi response, tạm thời không đọc
+        // Kiem tra neu main thread dang doi response, tam thoi khong doc
         if (waiting_for_response) {
             usleep(50000); // Sleep 50ms
             continue;
         }
         
-        // Sử dụng select với timeout để không block quá lâu
+        // Su dung select voi timeout de khong block qua lau
         fd_set read_fds;
         FD_ZERO(&read_fds);
         FD_SET(fd, &read_fds);
@@ -393,7 +393,7 @@ void* message_receiver_thread(void* arg) {
         }
         
         if (activity == 0) {
-            // Timeout, tiếp tục
+            // Timeout, tiep tuc
             continue;
         }
         
@@ -401,12 +401,12 @@ void* message_receiver_thread(void* arg) {
             continue;
         }
         
-        // Kiểm tra lại nếu main thread đang đợi response
+        // Kiem tra lai neu main thread dang doi response
         if (waiting_for_response) {
             continue;
         }
         
-        // Peek message type trước (không remove khỏi buffer)
+        // Peek message type truoc (khong remove khoi buffer)
         uint8_t peek_buffer[3];
         pthread_mutex_lock(&socket_mutex);
         ssize_t peek_bytes = recv(fd, peek_buffer, 3, MSG_PEEK);
@@ -414,7 +414,7 @@ void* message_receiver_thread(void* arg) {
         
         if (peek_bytes < 3) {
             if (peek_bytes == 0) {
-                printf("\n[Receiver Thread] ✗ Server đã đóng kết nối\n");
+                printf("\n[Receiver Thread] ✗ Server da dong ket noi\n");
                 break;
             }
             continue;
@@ -422,23 +422,23 @@ void* message_receiver_thread(void* arg) {
         
         uint8_t type = peek_buffer[0];
         
-        // Kiểm tra nếu đang đợi response này, không xử lý như broadcast
+        // Kiem tra neu dang doi response nay, khong xu ly nhu broadcast
         if (waiting_for_response && expected_response_type == type) {
-            // Main thread đang đợi response này, không đọc (để main thread đọc)
+            // Main thread dang doi response nay, khong doc (de main thread doc)
             usleep(50000);
             continue;
         }
         
-        // Chỉ xử lý broadcast messages
+        // Chi xu ly broadcast messages
         if (type == MSG_ROOM_UPDATE || type == MSG_ROOM_PLAYERS_UPDATE || type == MSG_ROOM_LIST_RESPONSE) {
-            // Đọc message thực sự (chỉ khi là broadcast message)
+            // Doc message thuc su (chi khi la broadcast message)
             pthread_mutex_lock(&socket_mutex);
             ssize_t bytes_read = recv(fd, buffer, sizeof(buffer), 0);
             pthread_mutex_unlock(&socket_mutex);
             
             if (bytes_read <= 0) {
                 if (bytes_read == 0) {
-                    printf("\n[Receiver Thread] ✗ Server đã đóng kết nối\n");
+                    printf("\n[Receiver Thread] ✗ Server da dong ket noi\n");
                     break;
                 } else {
                     if (receiver_running) {
@@ -458,18 +458,18 @@ void* message_receiver_thread(void* arg) {
             
             process_message(buffer, length, type, NULL);
         } else {
-            // Không phải broadcast message, bỏ qua (để main thread xử lý)
-            // Không đọc message để main thread có thể đọc sau
-            usleep(50000); // Sleep để tránh busy loop và để main thread có cơ hội đọc
+            // Khong phai broadcast message, bo qua (de main thread xu ly)
+            // Khong doc message de main thread co the doc sau
+            usleep(50000); // Sleep de tranh busy loop va de main thread co co hoi doc
         }
     }
     
-    printf("[Receiver Thread] Đã dừng.\n");
+    printf("[Receiver Thread] Da dung.\n");
     return NULL;
 }
 
 /**
- * Khởi động receiver thread
+ * Khoi dong receiver thread
  */
 int start_receiver_thread(int fd) {
     receiver_running = true;
@@ -477,25 +477,25 @@ int start_receiver_thread(int fd) {
         perror("pthread_create() failed");
         return -1;
     }
-    printf("✓ Đã khởi động receiver thread\n");
+    printf("✓ Da khoi dong receiver thread\n");
     return 0;
 }
 
 /**
- * Dừng receiver thread
+ * Dung receiver thread
  */
 void stop_receiver_thread() {
     receiver_running = false;
-    // Đóng socket để recv() return và thread thoát
+    // Dong socket de recv() return va thread thoat
     if (sockfd >= 0) {
         shutdown(sockfd, SHUT_RD);
     }
     pthread_join(receiver_thread, NULL);
-    printf("✓ Đã dừng receiver thread\n");
+    printf("✓ Da dung receiver thread\n");
 }
 
 /**
- * Test đăng nhập
+ * Test dang nhap
  */
 int test_login(const char* username, const char* password) {
     if (!is_logged_in) {
@@ -508,17 +508,17 @@ int test_login(const char* username, const char* password) {
         send_message(sockfd, MSG_LOGIN_REQUEST, (uint8_t*)&req, sizeof(req));
         return receive_response(sockfd, &expected);
     } else {
-        printf("⚠ Đã đăng nhập rồi (user_id=%d)\n", current_user_id);
+        printf("⚠ Da dang nhap roi (user_id=%d)\n", current_user_id);
         return 0;
     }
 }
 
 /**
- * Test lấy danh sách phòng
+ * Test lay danh sach phong
  */
 int test_room_list() {
     if (!is_logged_in) {
-        printf("✗ Cần đăng nhập trước!\n");
+        printf("✗ Can dang nhap truoc!\n");
         return -1;
     }
     
@@ -528,11 +528,11 @@ int test_room_list() {
 }
 
 /**
- * Test tạo phòng
+ * Test tao phong
  */
 int test_create_room(const char* room_name, int max_players, int rounds) {
     if (!is_logged_in) {
-        printf("✗ Cần đăng nhập trước!\n");
+        printf("✗ Can dang nhap truoc!\n");
         return -1;
     }
     
@@ -548,11 +548,11 @@ int test_create_room(const char* room_name, int max_players, int rounds) {
 }
 
 /**
- * Test tham gia phòng
+ * Test tham gia phong
  */
 int test_join_room(int room_id) {
     if (!is_logged_in) {
-        printf("✗ Cần đăng nhập trước!\n");
+        printf("✗ Can dang nhap truoc!\n");
         return -1;
     }
     
@@ -565,11 +565,11 @@ int test_join_room(int room_id) {
 }
 
 /**
- * Test rời phòng
+ * Test roi phong
  */
 int test_leave_room(int room_id) {
     if (!is_logged_in) {
-        printf("✗ Cần đăng nhập trước!\n");
+        printf("✗ Can dang nhap truoc!\n");
         return -1;
     }
     
@@ -582,40 +582,40 @@ int test_leave_room(int room_id) {
 }
 
 /**
- * Hiển thị menu
+ * Hien thi menu
  */
 void print_menu() {
     printf("\n");
     printf("╔════════════════════════════════════════════════════╗\n");
     printf("║          ROOM PROTOCOL TEST MENU                   ║\n");
     printf("╠════════════════════════════════════════════════════╣\n");
-    printf("║ 1.  Đăng nhập                                      ║\n");
-    printf("║ 2.  Lấy danh sách phòng                            ║\n");
-    printf("║ 3.  Tạo phòng                                      ║\n");
-    printf("║ 4.  Tham gia phòng                                 ║\n");
-    printf("║ 5.  Rời phòng                                      ║\n");
-    printf("║ 6.  Xem trạng thái hiện tại                       ║\n");
-    printf("║ 7.  Lắng nghe ROOM_UPDATE (non-blocking)           ║\n");
-    printf("║ 0.  Thoát                                          ║\n");
+    printf("║ 1.  Dang nhap                                      ║\n");
+    printf("║ 2.  Lay danh sach phong                            ║\n");
+    printf("║ 3.  Tao phong                                      ║\n");
+    printf("║ 4.  Tham gia phong                                 ║\n");
+    printf("║ 5.  Roi phong                                      ║\n");
+    printf("║ 6.  Xem trang thai hien tai                       ║\n");
+    printf("║ 7.  Lang nghe ROOM_UPDATE (non-blocking)           ║\n");
+    printf("║ 0.  Thoat                                          ║\n");
     printf("╚════════════════════════════════════════════════════╝\n");
     printf("\n");
     if (is_logged_in) {
-        printf("Trạng thái: Đã đăng nhập (user_id=%d", current_user_id);
+        printf("Trang thai: Da dang nhap (user_id=%d", current_user_id);
         if (current_room_id > 0) {
             printf(", room_id=%d", current_room_id);
         }
         printf(")\n");
     } else {
-        printf("Trạng thái: Chưa đăng nhập\n");
+        printf("Trang thai: Chua dang nhap\n");
     }
-    printf("Lựa chọn: ");
+    printf("Lua chon: ");
 }
 
 /**
- * Lắng nghe ROOM_UPDATE (non-blocking)
+ * Lang nghe ROOM_UPDATE (non-blocking)
  */
 void listen_room_updates() {
-    printf("Đang lắng nghe ROOM_UPDATE (nhấn Enter để dừng)...\n");
+    printf("Dang lang nghe ROOM_UPDATE (nhan Enter de dung)...\n");
     
     fd_set read_fds;
     struct timeval timeout;
@@ -638,29 +638,29 @@ void listen_room_updates() {
         }
         
         if (activity == 0) {
-            // Timeout, tiếp tục
+            // Timeout, tiep tuc
             continue;
         }
         
-        // Kiểm tra stdin (Enter để dừng)
+        // Kiem tra stdin (Enter de dung)
         if (FD_ISSET(STDIN_FILENO, &read_fds)) {
             char c;
             if (read(STDIN_FILENO, &c, 1) > 0 && c == '\n') {
-                printf("Dừng lắng nghe.\n");
+                printf("Dung lang nghe.\n");
                 break;
             }
         }
         
-        // Kiểm tra socket
+        // Kiem tra socket
         if (FD_ISSET(sockfd, &read_fds)) {
             receive_response(sockfd, NULL);
         }
     }
 }
 
-// Signal handler để dừng thread khi thoát
+// Signal handler de dung thread khi thoat
 void signal_handler(int sig) {
-    printf("\nNhận tín hiệu dừng, đang đóng kết nối...\n");
+    printf("\nNhan tin hieu dung, dang dong ket noi...\n");
     stop_receiver_thread();
     if (sockfd >= 0) {
         close(sockfd);
@@ -669,21 +669,21 @@ void signal_handler(int sig) {
 }
 
 int main() {
-    // Đăng ký signal handler
+    // Dang ky signal handler
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
     
-    printf("=== ROOM PROTOCOL TEST CLIENT (ĐA LUỒNG) ===\n");
-    printf("Kết nối đến server %s:%d...\n", SERVER_IP, SERVER_PORT);
+    printf("=== ROOM PROTOCOL TEST CLIENT (DA LUONG) ===\n");
+    printf("Ket noi den server %s:%d...\n", SERVER_IP, SERVER_PORT);
     
     sockfd = connect_to_server(SERVER_IP, SERVER_PORT);
     if (sockfd < 0) {
         return 1;
     }
     
-    // Khởi động receiver thread để nhận broadcast messages
+    // Khoi dong receiver thread de nhan broadcast messages
     if (start_receiver_thread(sockfd) < 0) {
-        fprintf(stderr, "Không thể khởi động receiver thread\n");
+        fprintf(stderr, "Khong the khoi dong receiver thread\n");
         close(sockfd);
         return 1;
     }
@@ -722,15 +722,15 @@ int main() {
             case 3: {
                 char room_name[64];
                 int max_players = 4, rounds = 3;
-                printf("Tên phòng: ");
+                printf("Ten phong: ");
                 if (fgets(room_name, sizeof(room_name), stdin)) {
                     room_name[strcspn(room_name, "\n")] = 0;
                 }
-                printf("Số người chơi tối đa (2-10, mặc định 4): ");
+                printf("So nguoi choi toi da (2-10, mac dinh 4): ");
                 if (fgets(input, sizeof(input), stdin) && strlen(input) > 1) {
                     max_players = atoi(input);
                 }
-                printf("Số rounds (1-10, mặc định 3): ");
+                printf("So rounds (1-10, mac dinh 3): ");
                 if (fgets(input, sizeof(input), stdin) && strlen(input) > 1) {
                     rounds = atoi(input);
                 }
@@ -747,7 +747,7 @@ int main() {
                 if (room_id > 0) {
                     test_join_room(room_id);
                 } else {
-                    printf("✗ Room ID không hợp lệ\n");
+                    printf("✗ Room ID khong hop le\n");
                 }
                 break;
             }
@@ -756,10 +756,10 @@ int main() {
                 int room_id = 0;
                 if (current_room_id > 0) {
                     room_id = current_room_id;
-                    printf("Rời phòng hiện tại (room_id=%d)? (y/n): ", room_id);
+                    printf("Roi phong hien tai (room_id=%d)? (y/n): ", room_id);
                     if (fgets(input, sizeof(input), stdin)) {
                         if (input[0] != 'y' && input[0] != 'Y') {
-                            printf("Hủy bỏ.\n");
+                            printf("Huy bo.\n");
                             break;
                         }
                     }
@@ -768,29 +768,29 @@ int main() {
                     if (fgets(input, sizeof(input), stdin)) {
                         room_id = atoi(input);
                     } else {
-                        printf("✗ Không thể đọc input\n");
+                        printf("✗ Khong the doc input\n");
                         break;
                     }
                 }
                 if (room_id > 0) {
                     test_leave_room(room_id);
                 } else {
-                    printf("✗ Room ID không hợp lệ\n");
+                    printf("✗ Room ID khong hop le\n");
                 }
                 break;
             }
             
             case 6:
-                printf("\n=== TRẠNG THÁI HIỆN TẠI ===\n");
-                printf("Kết nối: %s\n", (sockfd >= 0) ? "Đã kết nối" : "Chưa kết nối");
-                printf("Đăng nhập: %s\n", is_logged_in ? "Đã đăng nhập" : "Chưa đăng nhập");
+                printf("\n=== TRANG THAI HIEN TAI ===\n");
+                printf("Ket noi: %s\n", (sockfd >= 0) ? "Da ket noi" : "Chua ket noi");
+                printf("Dang nhap: %s\n", is_logged_in ? "Da dang nhap" : "Chua dang nhap");
                 if (is_logged_in) {
                     printf("User ID: %d\n", current_user_id);
                 }
                 if (current_room_id > 0) {
-                    printf("Room ID hiện tại: %d\n", current_room_id);
+                    printf("Room ID hien tai: %d\n", current_room_id);
                 } else {
-                    printf("Room ID hiện tại: Không có\n");
+                    printf("Room ID hien tai: Khong co\n");
                 }
                 printf("==========================\n");
                 break;
@@ -800,17 +800,17 @@ int main() {
                 break;
             
             case 0:
-                printf("Thoát chương trình.\n");
+                printf("Thoat chuong trinh.\n");
                 goto cleanup;
             
             default:
-                printf("✗ Lựa chọn không hợp lệ!\n");
+                printf("✗ Lua chon khong hop le!\n");
                 break;
         }
     }
     
 cleanup:
-    // Dừng receiver thread
+    // Dung receiver thread
     stop_receiver_thread();
     
     if (sockfd >= 0) {

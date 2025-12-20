@@ -7,7 +7,7 @@
 #include <arpa/inet.h>
 
 /**
- * Gửi CREATE_ROOM_RESPONSE
+ * Gui CREATE_ROOM_RESPONSE
  */
 int protocol_send_create_room_response(int client_fd, uint8_t status, int32_t room_id, const char *message)
 {
@@ -28,7 +28,7 @@ int protocol_send_create_room_response(int client_fd, uint8_t status, int32_t ro
 }
 
 /**
- * Gửi JOIN_ROOM_RESPONSE
+ * Gui JOIN_ROOM_RESPONSE
  */
 int protocol_send_join_room_response(int client_fd, uint8_t status, int32_t room_id, const char *message)
 {
@@ -49,7 +49,7 @@ int protocol_send_join_room_response(int client_fd, uint8_t status, int32_t room
 }
 
 /**
- * Gửi LEAVE_ROOM_RESPONSE
+ * Gui LEAVE_ROOM_RESPONSE
  */
 int protocol_send_leave_room_response(int client_fd, uint8_t status, const char *message)
 {
@@ -69,7 +69,7 @@ int protocol_send_leave_room_response(int client_fd, uint8_t status, const char 
 }
 
 /**
- * Gửi ROOM_LIST_RESPONSE đến client
+ * Gui ROOM_LIST_RESPONSE den client
  */
 int protocol_send_room_list(int client_fd, server_t *server)
 {
@@ -78,26 +78,26 @@ int protocol_send_room_list(int client_fd, server_t *server)
         return -1;
     }
 
-    // Lấy danh sách phòng
+    // Lay danh sach phong
     room_info_t room_list[50]; // MAX_ROOMS
     int room_count = room_get_list(server, room_list, 50);
 
-    // Tính kích thước payload
+    // Tinh kich thuoc payload
     uint16_t payload_size = sizeof(room_list_response_t) +
                             room_count * sizeof(room_info_protocol_t);
 
     if (payload_size > BUFFER_SIZE - 3)
     {
-        fprintf(stderr, "Lỗi: Room list quá lớn (%d bytes)\n", payload_size);
+        fprintf(stderr, "Loi: Room list qua lon (%d bytes)\n", payload_size);
         return -1;
     }
 
-    // Tạo payload
+    // Tao payload
     uint8_t payload[BUFFER_SIZE];
     room_list_response_t *header = (room_list_response_t *)payload;
     header->room_count = htons((uint16_t)room_count);
 
-    // Chuyển đổi room_info_t sang room_info_protocol_t
+    // Chuyen doi room_info_t sang room_info_protocol_t
     room_info_protocol_t *room_info_proto = (room_info_protocol_t *)(payload + sizeof(room_list_response_t));
     for (int i = 0; i < room_count; i++)
     {
@@ -115,8 +115,8 @@ int protocol_send_room_list(int client_fd, server_t *server)
 }
 
 /**
- * Broadcast ROOM_LIST_RESPONSE đến tất cả clients đã đăng nhập
- * Gọi khi có phòng mới được tạo hoặc phòng bị xóa
+ * Broadcast ROOM_LIST_RESPONSE den tat ca clients da dang nhap
+ * Goi khi co phong moi duoc tao hoac phong bi xoa
  */
 int protocol_broadcast_room_list(server_t *server)
 {
@@ -125,26 +125,26 @@ int protocol_broadcast_room_list(server_t *server)
         return -1;
     }
 
-    // Lấy danh sách phòng
+    // Lay danh sach phong
     room_info_t room_list[50]; // MAX_ROOMS
     int room_count = room_get_list(server, room_list, 50);
 
-    // Tính kích thước payload
+    // Tinh kich thuoc payload
     uint16_t payload_size = sizeof(room_list_response_t) +
                             room_count * sizeof(room_info_protocol_t);
 
     if (payload_size > BUFFER_SIZE - 3)
     {
-        fprintf(stderr, "Lỗi: Room list quá lớn (%d bytes)\n", payload_size);
+        fprintf(stderr, "Loi: Room list qua lon (%d bytes)\n", payload_size);
         return -1;
     }
 
-    // Tạo payload
+    // Tao payload
     uint8_t payload[BUFFER_SIZE];
     room_list_response_t *header = (room_list_response_t *)payload;
     header->room_count = htons((uint16_t)room_count);
 
-    // Chuyển đổi room_info_t sang room_info_protocol_t
+    // Chuyen doi room_info_t sang room_info_protocol_t
     room_info_protocol_t *room_info_proto = (room_info_protocol_t *)(payload + sizeof(room_list_response_t));
     for (int i = 0; i < room_count; i++)
     {
@@ -158,13 +158,13 @@ int protocol_broadcast_room_list(server_t *server)
         unsigned char *bytes = (unsigned char *)&room_info_proto[i].owner_id;
     }
 
-    // Gửi đến tất cả clients đã đăng nhập (LOGGED_IN trở lên)
+    // Gui den tat ca clients da dang nhap (LOGGED_IN tro len)
     int sent_count = 0;
     for (int i = 0; i < MAX_CLIENTS; i++)
     {
         client_t *client = &server->clients[i];
 
-        // Chỉ gửi cho clients đã đăng nhập (không gửi cho clients trong phòng)
+        // Chi gui cho clients da dang nhap (khong gui cho clients trong phong)
         if (client->active &&
             client->state >= CLIENT_STATE_LOGGED_IN &&
             client->user_id > 0)
@@ -177,15 +177,15 @@ int protocol_broadcast_room_list(server_t *server)
         }
     }
 
-    printf("Đã broadcast ROOM_LIST_RESPONSE đến %d clients (tổng %d phòng)\n",
+    printf("Da broadcast ROOM_LIST_RESPONSE den %d clients (tong %d phong)\n",
            sent_count, room_count);
 
     return sent_count;
 }
 
 /**
- * Broadcast ROOM_PLAYERS_UPDATE đến tất cả clients trong phòng
- * Gửi danh sách đầy đủ người chơi khi có thay đổi
+ * Broadcast ROOM_PLAYERS_UPDATE den tat ca clients trong phong
+ * Gui danh sach day du nguoi choi khi co thay doi
  */
 int protocol_broadcast_room_players_update(server_t *server, room_t *room,
                                            uint8_t action, int changed_user_id,
@@ -197,21 +197,21 @@ int protocol_broadcast_room_players_update(server_t *server, room_t *room,
         return -1;
     }
 
-    // Tính kích thước payload
+    // Tinh kich thuoc payload
     uint16_t payload_size = sizeof(room_players_update_t) +
                             room->player_count * sizeof(player_info_protocol_t);
 
     if (payload_size > BUFFER_SIZE - 3)
     {
-        fprintf(stderr, "Lỗi: Room players update quá lớn (%d bytes)\n", payload_size);
+        fprintf(stderr, "Loi: Room players update qua lon (%d bytes)\n", payload_size);
         return -1;
     }
 
-    // Tạo payload
+    // Tao payload
     uint8_t payload[BUFFER_SIZE];
     room_players_update_t *update = (room_players_update_t *)payload;
 
-    // Thông tin phòng đầy đủ
+    // Thong tin phong day du
     update->room_id = htonl((uint32_t)room->room_id);
     strncpy(update->room_name, room->room_name, MAX_ROOM_NAME_LEN - 1);
     update->room_name[MAX_ROOM_NAME_LEN - 1] = '\0';
@@ -219,14 +219,14 @@ int protocol_broadcast_room_players_update(server_t *server, room_t *room,
     update->state = (uint8_t)room->state;
     update->owner_id = htonl((uint32_t)room->owner_id);
 
-    // Thông tin thay đổi người chơi
+    // Thong tin thay doi nguoi choi
     update->action = action; // 0 = JOIN, 1 = LEAVE
     update->changed_user_id = htonl((uint32_t)changed_user_id);
     strncpy(update->changed_username, changed_username, MAX_USERNAME_LEN - 1);
     update->changed_username[MAX_USERNAME_LEN - 1] = '\0';
     update->player_count = htons((uint16_t)room->player_count);
 
-    // Lấy danh sách người chơi hiện tại
+    // Lay danh sach nguoi choi hien tai
     player_info_protocol_t *players = (player_info_protocol_t *)(payload + sizeof(room_players_update_t));
 
     for (int i = 0; i < room->player_count; i++)
@@ -235,7 +235,7 @@ int protocol_broadcast_room_players_update(server_t *server, room_t *room,
         players[i].user_id = htonl((uint32_t)player_user_id);
         players[i].is_owner = (player_user_id == room->owner_id) ? 1 : 0;
 
-        // Tìm username từ server->clients
+        // Tim username tu server->clients
         strncpy(players[i].username, "Unknown", MAX_USERNAME_LEN - 1);
         for (int j = 0; j < MAX_CLIENTS; j++)
         {
@@ -249,7 +249,7 @@ int protocol_broadcast_room_players_update(server_t *server, room_t *room,
         }
     }
 
-    // Gửi đến tất cả clients trong phòng
+    // Gui den tat ca clients trong phong
     int sent_count = 0;
     for (int i = 0; i < MAX_CLIENTS; i++)
     {
@@ -271,14 +271,14 @@ int protocol_broadcast_room_players_update(server_t *server, room_t *room,
     }
 
     const char *action_str = (action == 0) ? "JOIN" : "LEAVE";
-    printf("Đã gửi ROOM_PLAYERS_UPDATE (action=%s, user_id=%d) cho phòng '%s' đến %d clients\n",
+    printf("Da gui ROOM_PLAYERS_UPDATE (action=%s, user_id=%d) cho phong '%s' den %d clients\n",
            action_str, changed_user_id, room->room_name, sent_count);
 
     return (sent_count > 0) ? 0 : -1;
 }
 
 /**
- * Broadcast ROOM_UPDATE đến tất cả clients trong phòng
+ * Broadcast ROOM_UPDATE den tat ca clients trong phong
  */
 int protocol_broadcast_room_update(server_t *server, room_t *room, int exclude_client_index)
 {
@@ -287,7 +287,7 @@ int protocol_broadcast_room_update(server_t *server, room_t *room, int exclude_c
         return -1;
     }
 
-    // Tạo room_info_protocol_t từ room
+    // Tao room_info_protocol_t tu room
     room_info_protocol_t room_info;
     room_info.room_id = htonl((uint32_t)room->room_id);
     strncpy(room_info.room_name, room->room_name, MAX_ROOM_NAME_LEN - 1);
@@ -297,19 +297,19 @@ int protocol_broadcast_room_update(server_t *server, room_t *room, int exclude_c
     room_info.state = (uint8_t)room->state;
     room_info.owner_id = htonl((uint32_t)room->owner_id);
 
-    // Gửi đến tất cả clients trong phòng
+    // Gui den tat ca clients trong phong
     int sent_count = 0;
     for (int i = 0; i < MAX_CLIENTS; i++)
     {
         client_t *client = &server->clients[i];
 
-        // Bỏ qua client không active hoặc client bị loại trừ
+        // Bo qua client khong active hoac client bi loai tru
         if (!client->active || i == exclude_client_index)
         {
             continue;
         }
 
-        // Kiểm tra client có trong phòng không
+        // Kiem tra client co trong phong khong
         if (room_has_player(room, client->user_id))
         {
             if (protocol_send_message(client->fd, MSG_ROOM_UPDATE,
@@ -320,14 +320,14 @@ int protocol_broadcast_room_update(server_t *server, room_t *room, int exclude_c
         }
     }
 
-    printf("Đã gửi ROOM_UPDATE cho phòng '%s' (ID: %d) đến %d clients\n",
+    printf("Da gui ROOM_UPDATE cho phong '%s' (ID: %d) den %d clients\n",
            room->room_name, room->room_id, sent_count);
 
     return (sent_count > 0) ? 0 : -1;
 }
 
 /**
- * Tìm room trong server theo room_id
+ * Tim room trong server theo room_id
  */
 static room_t *protocol_find_room(server_t *server, int room_id)
 {
@@ -348,7 +348,7 @@ static room_t *protocol_find_room(server_t *server, int room_id)
 }
 
 /**
- * Thêm room vào server
+ * Them room vao server
  */
 static int protocol_add_room_to_server(server_t *server, room_t *room)
 {
@@ -357,25 +357,25 @@ static int protocol_add_room_to_server(server_t *server, room_t *room)
         return -1;
     }
 
-    // Tìm slot trống
+    // Tim slot trong
     for (int i = 0; i < MAX_ROOMS; i++)
     {
         if (server->rooms[i] == NULL)
         {
             server->rooms[i] = room;
             server->room_count++;
-            printf("Đã thêm phòng '%s' (ID: %d) vào server. Tổng số phòng: %d\n",
+            printf("Da them phong '%s' (ID: %d) vao server. Tong so phong: %d\n",
                    room->room_name, room->room_id, server->room_count);
             return 0;
         }
     }
 
-    fprintf(stderr, "Lỗi: Server đã đầy phòng (MAX_ROOMS = %d)\n", MAX_ROOMS);
+    fprintf(stderr, "Loi: Server da day phong (MAX_ROOMS = %d)\n", MAX_ROOMS);
     return -1;
 }
 
 /**
- * Xóa room khỏi server
+ * Xoa room khoi server
  */
 static int protocol_remove_room_from_server(server_t *server, room_t *room)
 {
@@ -390,7 +390,7 @@ static int protocol_remove_room_from_server(server_t *server, room_t *room)
         {
             server->rooms[i] = NULL;
             server->room_count--;
-            printf("Đã xóa phòng '%s' (ID: %d) khỏi server. Tổng số phòng: %d\n",
+            printf("Da xoa phong '%s' (ID: %d) khoi server. Tong so phong: %d\n",
                    room->room_name, room->room_id, server->room_count);
             return 0;
         }
@@ -400,7 +400,7 @@ static int protocol_remove_room_from_server(server_t *server, room_t *room)
 }
 
 /**
- * Xử lý ROOM_LIST_REQUEST
+ * Xu ly ROOM_LIST_REQUEST
  */
 int protocol_handle_room_list_request(server_t *server, int client_index, const message_t *msg)
 {
@@ -416,20 +416,20 @@ int protocol_handle_room_list_request(server_t *server, int client_index, const 
         return -1;
     }
 
-    // Kiểm tra client đã đăng nhập chưa
+    // Kiem tra client da dang nhap chua
     if (client->state == CLIENT_STATE_LOGGED_OUT || client->user_id <= 0)
     {
-        fprintf(stderr, "Client %d chưa đăng nhập, không thể lấy danh sách phòng\n", client_index);
+        fprintf(stderr, "Client %d chua dang nhap, khong the lay danh sach phong\n", client_index);
         return -1;
     }
 
-    printf("Nhận ROOM_LIST_REQUEST từ client %d (user_id=%d)\n", client_index, client->user_id);
+    printf("Nhan ROOM_LIST_REQUEST tu client %d (user_id=%d)\n", client_index, client->user_id);
 
     return protocol_send_room_list(client->fd, server);
 }
 
 /**
- * Xử lý CREATE_ROOM
+ * Xu ly CREATE_ROOM
  */
 int protocol_handle_create_room(server_t *server, int client_index, const message_t *msg)
 {
@@ -444,34 +444,34 @@ int protocol_handle_create_room(server_t *server, int client_index, const messag
         return -1;
     }
 
-    // Kiểm tra client đã đăng nhập chưa
+    // Kiem tra client da dang nhap chua
     if (client->state == CLIENT_STATE_LOGGED_OUT || client->user_id <= 0)
     {
         protocol_send_create_room_response(client->fd, STATUS_ERROR, -1,
-                                           "Bạn cần đăng nhập để tạo phòng");
+                                           "Ban can dang nhap de tao phong");
         return -1;
     }
 
-    // Kiểm tra client đã trong phòng chưa
+    // Kiem tra client da trong phong chua
     if (client->state == CLIENT_STATE_IN_ROOM || client->state == CLIENT_STATE_IN_GAME)
     {
         protocol_send_create_room_response(client->fd, STATUS_ERROR, -1,
-                                           "Bạn đang trong phòng khác");
+                                           "Ban dang trong phong khac");
         return -1;
     }
 
-    // Kiểm tra payload size
+    // Kiem tra payload size
     if (msg->length < sizeof(create_room_request_t))
     {
         protocol_send_create_room_response(client->fd, STATUS_ERROR, -1,
-                                           "Dữ liệu không hợp lệ");
+                                           "Du lieu khong hop le");
         return -1;
     }
 
     // Parse payload
     create_room_request_t *req = (create_room_request_t *)msg->payload;
 
-    // Đảm bảo null-terminated
+    // Dam bao null-terminated
     char room_name[MAX_ROOM_NAME_LEN];
     strncpy(room_name, req->room_name, MAX_ROOM_NAME_LEN - 1);
     room_name[MAX_ROOM_NAME_LEN - 1] = '\0';
@@ -479,86 +479,86 @@ int protocol_handle_create_room(server_t *server, int client_index, const messag
     int max_players = (int)req->max_players;
     int rounds = (int)req->rounds;
 
-    printf("Nhận CREATE_ROOM từ client %d: room_name=%s, max_players=%d, rounds=%d\n",
+    printf("Nhan CREATE_ROOM tu client %d: room_name=%s, max_players=%d, rounds=%d\n",
            client_index, room_name, max_players, rounds);
 
     // Validate
     if (strlen(room_name) == 0)
     {
         protocol_send_create_room_response(client->fd, STATUS_ERROR, -1,
-                                           "Tên phòng không được để trống");
+                                           "Ten phong khong duoc de trong");
         return -1;
     }
 
     if (max_players < 2 || max_players > 10)
     {
         protocol_send_create_room_response(client->fd, STATUS_ERROR, -1,
-                                           "Số người chơi phải từ 2-10");
+                                           "So nguoi choi phai tu 2-10");
         return -1;
     }
 
     if (rounds < 1 || rounds > 10)
     {
         protocol_send_create_room_response(client->fd, STATUS_ERROR, -1,
-                                           "Số round phải từ 1-10");
+                                           "So round phai tu 1-10");
         return -1;
     }
 
-    // Kiểm tra server đã đầy phòng chưa
+    // Kiem tra server da day phong chua
     if (server->room_count >= MAX_ROOMS)
     {
         protocol_send_create_room_response(client->fd, STATUS_ERROR, -1,
-                                           "Server đã đầy phòng");
+                                           "Server da day phong");
         return -1;
     }
 
-    // Tạo phòng
+    // Tao phong
     room_t *room = room_create(room_name, client->user_id, max_players, rounds);
     if (!room)
     {
         protocol_send_create_room_response(client->fd, STATUS_ERROR, -1,
-                                           "Không thể tạo phòng");
+                                           "Khong the tao phong");
         return -1;
     }
 
-    // Thêm phòng vào server
+    // Them phong vao server
     if (protocol_add_room_to_server(server, room) != 0)
     {
         room_destroy(room);
         protocol_send_create_room_response(client->fd, STATUS_ERROR, -1,
-                                           "Không thể thêm phòng vào server");
+                                           "Khong the them phong vao server");
         return -1;
     }
 
-    // Cập nhật trạng thái client
+    // Cap nhat trang thai client
     client->state = CLIENT_STATE_IN_ROOM;
 
-    // Gửi response thành công
+    // Gui response thanh cong
     protocol_send_create_room_response(client->fd, STATUS_SUCCESS, room->room_id,
-                                       "Tạo phòng thành công");
+                                       "Tao phong thanh cong");
 
-    printf("Client %d đã tạo phòng '%s' (ID: %d) thành công\n",
+    printf("Client %d da tao phong '%s' (ID: %d) thanh cong\n",
            client_index, room_name, room->room_id);
 
-    // Broadcast danh sách phòng cho tất cả clients đã đăng nhập
+    // Broadcast danh sach phong cho tat ca clients da dang nhap
     protocol_broadcast_room_list(server);
 
-    // Gửi ROOM_PLAYERS_UPDATE cho chính phòng vừa tạo
-    // Đảm bảo client tạo phòng nhìn thấy mình là owner và danh sách người chơi hiện tại
+    // Gui ROOM_PLAYERS_UPDATE cho chinh phong vua tao
+    // Dam bao client tao phong nhin thay minh la owner va danh sach nguoi choi hien tai
     protocol_broadcast_room_players_update(
         server,
         room,
         0, // action = JOIN
         client->user_id,
         client->username,
-        -1 // không loại trừ ai; gửi cho tất cả trong phòng (hiện tại chỉ có owner)
+        -1 // khong loai tru ai; gui cho tat ca trong phong (hien tai chi co owner)
     );
 
     return 0;
 }
 
 /**
- * Xử lý JOIN_ROOM
+ * Xu ly JOIN_ROOM
  */
 int protocol_handle_join_room(server_t *server, int client_index, const message_t *msg)
 {
@@ -573,27 +573,27 @@ int protocol_handle_join_room(server_t *server, int client_index, const message_
         return -1;
     }
 
-    // Kiểm tra client đã đăng nhập chưa
+    // Kiem tra client da dang nhap chua
     if (client->state == CLIENT_STATE_LOGGED_OUT || client->user_id <= 0)
     {
         protocol_send_join_room_response(client->fd, STATUS_ERROR, -1,
-                                         "Bạn cần đăng nhập để tham gia phòng");
+                                         "Ban can dang nhap de tham gia phong");
         return -1;
     }
 
-    // Kiểm tra client đã trong phòng chưa
+    // Kiem tra client da trong phong chua
     if (client->state == CLIENT_STATE_IN_ROOM || client->state == CLIENT_STATE_IN_GAME)
     {
         protocol_send_join_room_response(client->fd, STATUS_ERROR, -1,
-                                         "Bạn đang trong phòng khác");
+                                         "Ban dang trong phong khac");
         return -1;
     }
 
-    // Kiểm tra payload size
+    // Kiem tra payload size
     if (msg->length < sizeof(join_room_request_t))
     {
         protocol_send_join_room_response(client->fd, STATUS_ERROR, -1,
-                                         "Dữ liệu không hợp lệ");
+                                         "Du lieu khong hop le");
         return -1;
     }
 
@@ -601,57 +601,57 @@ int protocol_handle_join_room(server_t *server, int client_index, const message_
     join_room_request_t *req = (join_room_request_t *)msg->payload;
     int room_id = (int)ntohl((uint32_t)req->room_id); // Convert from network byte order
 
-    printf("Nhận JOIN_ROOM từ client %d: room_id=%d\n", client_index, room_id);
+    printf("Nhan JOIN_ROOM tu client %d: room_id=%d\n", client_index, room_id);
 
-    // Tìm phòng
+    // Tim phong
     room_t *room = protocol_find_room(server, room_id);
     if (!room)
     {
         protocol_send_join_room_response(client->fd, STATUS_ERROR, -1,
-                                         "Không tìm thấy phòng");
+                                         "Khong tim thay phong");
         return -1;
     }
 
-    // Kiểm tra phòng đã đầy chưa
+    // Kiem tra phong da day chua
     if (room_is_full(room))
     {
         protocol_send_join_room_response(client->fd, STATUS_ERROR, -1,
-                                         "Phòng đã đầy");
+                                         "Phong da day");
         return -1;
     }
 
-    // Kiểm tra người chơi đã trong phòng chưa
+    // Kiem tra nguoi choi da trong phong chua
     if (room_has_player(room, client->user_id))
     {
         protocol_send_join_room_response(client->fd, STATUS_ERROR, -1,
-                                         "Bạn đã trong phòng này");
+                                         "Ban da trong phong nay");
         return -1;
     }
 
-    // Thêm người chơi vào phòng
+    // Them nguoi choi vao phong
     if (!room_add_player(room, client->user_id))
     {
         protocol_send_join_room_response(client->fd, STATUS_ERROR, -1,
-                                         "Không thể tham gia phòng");
+                                         "Khong the tham gia phong");
         return -1;
     }
 
-    // Cập nhật trạng thái client
+    // Cap nhat trang thai client
     client->state = CLIENT_STATE_IN_ROOM;
 
-    // Kiểm tra nếu phòng đã đạt max players và đang WAITING, tự động start game
+    // Kiem tra neu phong da dat max players va dang WAITING, tu dong start game
     if (room->player_count >= room->max_players && room->state == ROOM_WAITING) {
-        printf("Phòng '%s' (ID: %d) đã đạt max players (%d/%d), tự động bắt đầu game\n",
+        printf("Phong '%s' (ID: %d) da dat max players (%d/%d), tu dong bat dau game\n",
                room->room_name, room->room_id, room->player_count, room->max_players);
         
         if (room_start_game(room)) {
-            printf("Game đã tự động bắt đầu trong phòng '%s' (ID: %d)\n",
+            printf("Game da tu dong bat dau trong phong '%s' (ID: %d)\n",
                    room->room_name, room->room_id);
             
-            // Cập nhật trạng thái client sang IN_GAME
+            // Cap nhat trang thai client sang IN_GAME
             client->state = CLIENT_STATE_IN_GAME;
             
-            // Cập nhật trạng thái tất cả clients trong phòng
+            // Cap nhat trang thai tat ca clients trong phong
             for (int i = 0; i < MAX_CLIENTS; i++) {
                 if (server->clients[i].active && 
                     room_has_player(room, server->clients[i].user_id)) {
@@ -659,31 +659,31 @@ int protocol_handle_join_room(server_t *server, int client_index, const message_
                 }
             }
         } else {
-            fprintf(stderr, "Lỗi: Không thể tự động bắt đầu game trong phòng %d\n", room->room_id);
+            fprintf(stderr, "Loi: Khong the tu dong bat dau game trong phong %d\n", room->room_id);
         }
     }
 
-    // Gửi response thành công
+    // Gui response thanh cong
     protocol_send_join_room_response(client->fd, STATUS_SUCCESS, room_id,
-                                     "Tham gia phòng thành công");
+                                     "Tham gia phong thanh cong");
 
-    // Broadcast ROOM_PLAYERS_UPDATE với danh sách đầy đủ (đã bao gồm tất cả thông tin phòng)
-    // Gửi cho TẤT CẢ clients trong phòng, bao gồm cả client vừa join
+    // Broadcast ROOM_PLAYERS_UPDATE voi danh sach day du (da bao gom tat ca thong tin phong)
+    // Gui cho TAT CA clients trong phong, bao gom ca client vua join
     protocol_broadcast_room_players_update(server, room, 0, // 0 = JOIN
                                            client->user_id, client->username,
-                                           -1); // -1 = không exclude ai
+                                           -1); // -1 = khong exclude ai
 
-    // Broadcast ROOM_UPDATE để thông báo trạng thái phòng (có thể đã chuyển sang PLAYING)
+    // Broadcast ROOM_UPDATE de thong bao trang thai phong (co the da chuyen sang PLAYING)
     protocol_broadcast_room_update(server, room, -1);
 
-    printf("Client %d (user_id=%d, username=%s) đã tham gia phòng '%s' (ID: %d)\n",
+    printf("Client %d (user_id=%d, username=%s) da tham gia phong '%s' (ID: %d)\n",
            client_index, client->user_id, client->username, room->room_name, room_id);
 
     return 0;
 }
 
 /**
- * Xử lý LEAVE_ROOM
+ * Xu ly LEAVE_ROOM
  */
 int protocol_handle_leave_room(server_t *server, int client_index, const message_t *msg)
 {
@@ -698,27 +698,27 @@ int protocol_handle_leave_room(server_t *server, int client_index, const message
         return -1;
     }
 
-    // Kiểm tra client đã đăng nhập chưa
+    // Kiem tra client da dang nhap chua
     if (client->state == CLIENT_STATE_LOGGED_OUT || client->user_id <= 0)
     {
         protocol_send_leave_room_response(client->fd, STATUS_ERROR,
-                                          "Bạn chưa đăng nhập");
+                                          "Ban chua dang nhap");
         return -1;
     }
 
-    // Kiểm tra client có trong phòng không
+    // Kiem tra client co trong phong khong
     if (client->state != CLIENT_STATE_IN_ROOM && client->state != CLIENT_STATE_IN_GAME)
     {
         protocol_send_leave_room_response(client->fd, STATUS_ERROR,
-                                          "Bạn không trong phòng nào");
+                                          "Ban khong trong phong nao");
         return -1;
     }
 
-    // Kiểm tra payload size
+    // Kiem tra payload size
     if (msg->length < sizeof(leave_room_request_t))
     {
         protocol_send_leave_room_response(client->fd, STATUS_ERROR,
-                                          "Dữ liệu không hợp lệ");
+                                          "Du lieu khong hop le");
         return -1;
     }
 
@@ -726,34 +726,34 @@ int protocol_handle_leave_room(server_t *server, int client_index, const message
     leave_room_request_t *req = (leave_room_request_t *)msg->payload;
     int room_id = (int)ntohl((uint32_t)req->room_id); // Convert from network byte order
 
-    printf("Nhận LEAVE_ROOM từ client %d: room_id=%d\n", client_index, room_id);
+    printf("Nhan LEAVE_ROOM tu client %d: room_id=%d\n", client_index, room_id);
 
-    // Tìm phòng
+    // Tim phong
     room_t *room = protocol_find_room(server, room_id);
     if (!room)
     {
         protocol_send_leave_room_response(client->fd, STATUS_ERROR,
-                                          "Không tìm thấy phòng");
+                                          "Khong tim thay phong");
         return -1;
     }
 
-    // Kiểm tra người chơi có trong phòng không
+    // Kiem tra nguoi choi co trong phong khong
     if (!room_has_player(room, client->user_id))
     {
         protocol_send_leave_room_response(client->fd, STATUS_ERROR,
-                                          "Bạn không trong phòng này");
+                                          "Ban khong trong phong nay");
         return -1;
     }
 
-    // Xóa người chơi khỏi phòng
+    // Xoa nguoi choi khoi phong
     if (!room_remove_player(room, client->user_id))
     {
         protocol_send_leave_room_response(client->fd, STATUS_ERROR,
-                                          "Không thể rời phòng");
+                                          "Khong the roi phong");
         return -1;
     }
 
-    // Lưu thông tin trước khi broadcast
+    // Luu thong tin truoc khi broadcast
     char room_name[ROOM_NAME_MAX_LENGTH];
     strncpy(room_name, room->room_name, ROOM_NAME_MAX_LENGTH - 1);
     room_name[ROOM_NAME_MAX_LENGTH - 1] = '\0';
@@ -762,34 +762,34 @@ int protocol_handle_leave_room(server_t *server, int client_index, const message
     strncpy(leaving_username, client->username, sizeof(leaving_username) - 1);
     leaving_username[sizeof(leaving_username) - 1] = '\0';
 
-    // Nếu phòng trống sau khi rời, xóa phòng
+    // Neu phong trong sau khi roi, xoa phong
     if (room->player_count == 0)
     {
         protocol_remove_room_from_server(server, room);
         room_destroy(room);
-        printf("Phòng '%s' (ID: %d) đã bị xóa vì không còn người chơi\n",
+        printf("Phong '%s' (ID: %d) da bi xoa vi khong con nguoi choi\n",
                room_name, room_id);
 
-        // Broadcast danh sách phòng cho tất cả clients đã đăng nhập
+        // Broadcast danh sach phong cho tat ca clients da dang nhap
         protocol_broadcast_room_list(server);
     }
     else
     {
-        // Broadcast ROOM_PLAYERS_UPDATE với danh sách đầy đủ (đã bao gồm tất cả thông tin phòng)
+        // Broadcast ROOM_PLAYERS_UPDATE voi danh sach day du (da bao gom tat ca thong tin phong)
         protocol_broadcast_room_players_update(server, room, 1, // 1 = LEAVE
                                                leaving_user_id, leaving_username,
                                                client_index);
 
-        printf("Client %d (user_id=%d, username=%s) đã rời phòng '%s' (ID: %d)\n",
+        printf("Client %d (user_id=%d, username=%s) da roi phong '%s' (ID: %d)\n",
                client_index, leaving_user_id, leaving_username, room_name, room_id);
     }
 
-    // Cập nhật trạng thái client
+    // Cap nhat trang thai client
     client->state = CLIENT_STATE_LOGGED_IN;
 
-    // Gửi response thành công
+    // Gui response thanh cong
     protocol_send_leave_room_response(client->fd, STATUS_SUCCESS,
-                                      "Rời phòng thành công");
+                                      "Roi phong thanh cong");
 
     return 0;
 }
