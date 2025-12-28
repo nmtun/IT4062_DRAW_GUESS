@@ -73,9 +73,89 @@ void db_disconnect(db_connection_t* db) {
     printf("Da dong ket noi database\n");
 }
 
+/**
+ * Kiểm tra và tự động kết nối lại nếu connection bị mất
+ */
+int db_check_and_reconnect(db_connection_t* db) {
+    if (!db) {
+        return 0;
+    }
+    
+    // Nếu connection là NULL, tạo mới
+    if (!db->conn) {
+        fprintf(stderr, "MySQL connection is NULL, attempting to reconnect...\n");
+        
+        // Tạo connection mới
+        db->conn = mysql_init(NULL);
+        if (!db->conn) {
+            fprintf(stderr, "Loi: Khong the khoi tao MySQL connection\n");
+            return 0;
+        }
+        
+        // Kết nối lại
+        if (!mysql_real_connect(db->conn, db->host, db->user, db->password, 
+                               db->database, 3308, NULL, 0)) {
+            fprintf(stderr, "Loi ket noi MySQL: %s\n", mysql_error(db->conn));
+            mysql_close(db->conn);
+            db->conn = NULL;
+            return 0;
+        }
+        
+        // Set charset lại
+        if (mysql_set_character_set(db->conn, "utf8mb4")) {
+            fprintf(stderr, "Canh bao: Khong the set charset utf8mb4: %s\n", 
+                    mysql_error(db->conn));
+        }
+        
+        printf("Da ket noi lai thanh cong den MySQL database: %s\n", db->database);
+        return 1;
+    }
+    
+    // Kiểm tra connection còn sống
+    if (mysql_ping(db->conn) != 0) {
+        fprintf(stderr, "MySQL connection lost, attempting to reconnect...\n");
+        
+        // Đóng connection cũ
+        mysql_close(db->conn);
+        
+        // Tạo connection mới
+        db->conn = mysql_init(NULL);
+        if (!db->conn) {
+            fprintf(stderr, "Loi: Khong the khoi tao MySQL connection\n");
+            return 0;
+        }
+        
+        // Kết nối lại
+        if (!mysql_real_connect(db->conn, db->host, db->user, db->password, 
+                               db->database, 3308, NULL, 0)) {
+            fprintf(stderr, "Loi ket noi MySQL: %s\n", mysql_error(db->conn));
+            mysql_close(db->conn);
+            db->conn = NULL;
+            return 0;
+        }
+        
+        // Set charset lại
+        if (mysql_set_character_set(db->conn, "utf8mb4")) {
+            fprintf(stderr, "Canh bao: Khong the set charset utf8mb4: %s\n", 
+                    mysql_error(db->conn));
+        }
+        
+        printf("Da ket noi lai thanh cong den MySQL database: %s\n", db->database);
+        return 1;
+    }
+    
+    return 1; // Connection vẫn OK
+}
+
 MYSQL_RES* db_execute_query(db_connection_t* db, const char* query, ...) {
-    if (!db || !db->conn || !query) {
+    if (!db || !query) {
         fprintf(stderr, "Loi: Tham so khong hop le\n");
+        return NULL;
+    }
+    
+    // Kiểm tra và reconnect nếu cần
+    if (!db_check_and_reconnect(db)) {
+        fprintf(stderr, "Loi: Khong the ket noi den database\n");
         return NULL;
     }
 

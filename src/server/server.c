@@ -2,12 +2,20 @@
 #include "../include/protocol.h"
 #include "../include/room.h"
 #include "../include/game.h"
+#include "../include/database.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
 #include <arpa/inet.h>
+#include <time.h>
+
+// External database connection (from main.c)
+extern db_connection_t* db;
+
+// Static variable để track last database ping
+static time_t last_db_ping = 0;
 
 // Khoi tao server
 int server_init(server_t *server, int port) {
@@ -361,6 +369,15 @@ void server_event_loop(server_t *server) {
             if (game_check_timeout(room->game)) {
                 // broadcast round_end + next round/game end
                 protocol_handle_round_timeout(server, room, word_before);
+            }
+        }
+
+        // Ping database mỗi 5 phút để giữ connection sống
+        time_t now = time(NULL);
+        if (now - last_db_ping > 300) { // 5 phút = 300 giây
+            if (db && db->conn) {
+                mysql_ping(db->conn);
+                last_db_ping = now;
             }
         }
     }

@@ -32,6 +32,13 @@ db_connection_t* db_connect(const char* host, const char* user,
 void db_disconnect(db_connection_t* db);
 
 /**
+ * Kiểm tra và tự động kết nối lại nếu connection bị mất
+ * @param db Con trỏ đến db_connection_t
+ * @return 1 nếu connection OK hoặc reconnect thành công, 0 nếu thất bại
+ */
+int db_check_and_reconnect(db_connection_t* db);
+
+/**
  * Thực thi query với prepared statement
  * @param db Con trỏ đến db_connection_t
  * @param query Câu lệnh SQL với placeholders (?)

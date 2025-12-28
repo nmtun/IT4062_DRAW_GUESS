@@ -1,0 +1,26 @@
+ssh -i ~/.ssh/ci_deploy_key root@45.117.177.143
+
+
+systemctl stop drawguess
+pm2 delete all
+cd /opt/IT4062_DRAW_GUESS/src
+docker compose down
+systemctl reload nginx
+
+cd /opt/IT4062_DRAW_GUESS/src
+docker compose up -d
+
+make clean || true
+make
+systemctl restart drawguess
+systemctl status drawguess
+
+cd /opt/IT4062_DRAW_GUESS/src/gateway
+npm ci || npm install
+pm2 start index.js --name drawguess-gateway
+pm2 save
+
+cd /opt/IT4062_DRAW_GUESS/src/frontend
+npm ci || npm install
+npm run build
+systemctl reload nginx
