@@ -90,6 +90,19 @@ int db_load_words_from_file(db_connection_t* db, const char* filepath);
  */
 int db_get_random_word(db_connection_t* db, const char* difficulty, char* out_word, size_t out_word_size);
 
+/**
+ * Lấy tất cả từ theo difficulty (nếu difficulty == NULL hoặc rỗng thì lấy tất cả).
+ * 
+ * @param db Con trỏ đến db_connection_t
+ * @param difficulty Mức độ khó: "easy", "medium", "hard" (NULL hoặc rỗng = tất cả)
+ * @param words Mảng con trỏ char* để lưu từ (phải được cấp phát trước)
+ * @param categories Mảng con trỏ char* để lưu category (phải được cấp phát trước)
+ * @param max_words Số lượng từ tối đa có thể lưu
+ * @return Số lượng từ thực tế lấy được, -1 nếu lỗi
+ */
+int db_get_all_words_by_difficulty(db_connection_t* db, const char* difficulty, 
+                                   char words[][64], char categories[][64], int max_words);
+
 // ============================
 // Phase 6 (21-24): Persistence APIs
 // ============================

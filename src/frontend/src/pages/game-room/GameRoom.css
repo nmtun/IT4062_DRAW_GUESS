@@ -80,6 +80,37 @@
   gap: 15px;
 }
 
+.game-info-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.round-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #e3f2fd;
+  border-radius: 20px;
+  font-weight: bold;
+  color: #1976d2;
+}
+
+.round-label {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.round-value {
+  font-size: 1.1rem;
+}
+
+.round-total {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
 .timer {
   display: flex;
   align-items: center;
@@ -122,34 +153,181 @@
 .game-main {
   position: relative;
   z-index: 1;
-  padding-left: 20px;
-  padding-right: 20px;
+  padding: 10px 20px 20px;
   max-width: 1800px;
   margin: 0 auto;
-  height: calc(100vh - 80px);
+  height: calc(100vh - 20px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Game Info Bar - Header thông tin chung */
+.game-info-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 15px;
+  padding: 15px 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.leave-btn {
+  background: #ff5252;
+  border: none;
+  color: white;
+  font-size: 1rem;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.leave-btn:hover {
+  background: #ff1744;
+  transform: translateY(-2px);
+}
+
+.word-display-area {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.word-display-box {
+  padding: 12px 30px;
+  background: #f5f5f5;
+  border-radius: 10px;
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #333;
+  text-align: center;
+  min-width: 300px;
+}
+
+.word-display-box .word-label {
+  color: #666;
+  font-size: 0.9rem;
+  margin-right: 10px;
+}
+
+.word-display-box .word-text {
+  color: #2196f3;
+  font-size: 1.5rem;
+  letter-spacing: 3px;
+}
+
+.word-display-box .category-display {
+  font-size: 0.9rem;
+  color: #7f8c8d;
+  margin-bottom: 0.5rem;
+  font-style: italic;
+}
+
+.word-display-box.waiting-text {
+  color: #9e9e9e;
+  font-style: italic;
+}
+
+.word-display-box.finished-text {
+  color: #4caf50;
+}
+
+.game-info-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
 
 .game-layout {
   display: grid;
-  grid-template-columns: 280px 1fr 320px;
+  grid-template-columns: 320px 1fr 350px;
   gap: 20px;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .game-sidebar {
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .game-center {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  min-height: 0;
 }
 
-/* .game-status {
-  margin-bottom: 10px;
-} */
+.player-list-wrapper {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.start-game-btn {
+  margin-top: 15px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.start-game-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+}
+
+.game-status {
+  flex-shrink: 0;
+}
+
+.waiting-animation-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  min-height: 80px;
+}
+
+.hourglass-spinner {
+  font-size: 4rem;
+  animation: hourglass-rotate 2s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes hourglass-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  45% {
+    transform: rotate(180deg);
+  }
+  50% {
+    transform: rotate(180deg);
+  }
+  95% {
+    transform: rotate(360deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
 
 .status-banner {
   padding: 0px 20px;
@@ -157,10 +335,6 @@
   text-align: center;
   color: white;
   font-weight: bold;
-}
-
-.status-banner.waiting {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .status-banner.drawing {
@@ -245,6 +419,7 @@
   .game-center {
     order: 1;
     min-height: 400px;
+    height: 90%;
   }
 
   .game-sidebar.right {
@@ -339,6 +514,7 @@
   
   .game-center {
     min-height: 350px;
+    height: 90%;
   }
 }
 
@@ -416,6 +592,7 @@
   
   .game-center {
     min-height: 300px;
+    height: 90%;
   }
   
   .settings-btn,

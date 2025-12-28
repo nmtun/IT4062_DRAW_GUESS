@@ -5,6 +5,7 @@ export default function CreateRoomDialog({ isOpen, onClose, onCreateRoom }) {
   const [roomName, setRoomName] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(8);
   const [rounds, setRounds] = useState(3);
+  const [difficulty, setDifficulty] = useState('easy'); // Mặc định là easy
   const [isCreating, setIsCreating] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -27,11 +28,12 @@ export default function CreateRoomDialog({ isOpen, onClose, onCreateRoom }) {
 
     setIsCreating(true);
     try {
-      await onCreateRoom(roomName.trim(), maxPlayers, rounds);
+      await onCreateRoom(roomName.trim(), maxPlayers, rounds, difficulty);
       // Reset form
       setRoomName('');
       setMaxPlayers(10);
       setRounds(3);
+      setDifficulty('easy');
       onClose();
     } catch (error) {
       alert('Không thể tạo phòng. Vui lòng thử lại.');
@@ -105,6 +107,20 @@ export default function CreateRoomDialog({ isOpen, onClose, onCreateRoom }) {
               {Array.from({length: 10}, (_, i) => i + 1).map(num => (
                 <option key={num} value={num}>{num} vòng</option>
               ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="difficulty">Mức độ khó:</label>
+            <select
+              id="difficulty"
+              value={difficulty}
+              onChange={(e) => setDifficulty(e.target.value)}
+              disabled={isCreating}
+            >
+              <option value="easy">Dễ</option>
+              <option value="medium">Trung bình</option>
+              <option value="hard">Khó</option>
             </select>
           </div>
 

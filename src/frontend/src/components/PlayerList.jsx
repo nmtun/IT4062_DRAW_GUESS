@@ -2,7 +2,7 @@ import React from 'react';
 import './PlayerList.css';
 import { getAvatar, getCurrentUser } from '../utils/userStorage';
 
-export default function PlayerList({ players, currentUserId }) {
+export default function PlayerList({ players, currentUserId, startButton }) {
   console.log('Rendering PlayerList with players:', players, 'and currentUserId:', currentUserId);
   // Chỉ hiển thị đúng danh sách players truyền vào, không tạo slot trống
   const displayPlayers = players.map(player => {

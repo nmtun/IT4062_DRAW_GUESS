@@ -13,7 +13,7 @@ extern db_connection_t* db;
 static int next_room_id = 1;
 
 // Tao phong choi moi
-room_t *room_create(const char *room_name, int owner_id, int max_players, int rounds)
+room_t *room_create(const char *room_name, int owner_id, int max_players, int rounds, const char *difficulty)
 {
     // Validate input
     if (!room_name || owner_id <= 0)
@@ -51,6 +51,21 @@ room_t *room_create(const char *room_name, int owner_id, int max_players, int ro
     room->owner_id = owner_id;
     room->max_players = max_players;
     room->total_rounds = rounds;
+    
+    // Set difficulty (mặc định "easy" nếu không có hoặc không hợp lệ)
+    if (difficulty && difficulty[0] != '\0') {
+        if (strcmp(difficulty, "easy") == 0 || strcmp(difficulty, "medium") == 0 || strcmp(difficulty, "hard") == 0) {
+            strncpy(room->difficulty, difficulty, sizeof(room->difficulty) - 1);
+            room->difficulty[sizeof(room->difficulty) - 1] = '\0';
+        } else {
+            strncpy(room->difficulty, "easy", sizeof(room->difficulty) - 1);
+            room->difficulty[sizeof(room->difficulty) - 1] = '\0';
+        }
+    } else {
+        strncpy(room->difficulty, "easy", sizeof(room->difficulty) - 1);
+        room->difficulty[sizeof(room->difficulty) - 1] = '\0';
+    }
+    
     room->state = ROOM_WAITING;
     room->game = NULL;
     room->created_at = time(NULL);

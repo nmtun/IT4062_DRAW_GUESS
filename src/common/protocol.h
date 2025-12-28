@@ -120,6 +120,7 @@ typedef struct {
     char room_name[MAX_ROOM_NAME_LEN];
     uint8_t max_players;          // 2-10
     uint8_t rounds;               // 1-10
+    char difficulty[16];          // "easy", "medium", "hard" (mặc định "easy")
 } create_room_request_t;
 
 // CREATE_ROOM response payload structure

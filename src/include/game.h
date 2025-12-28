@@ -12,12 +12,21 @@ typedef struct server server_t;
 #define GAME_POINTS_GUESSER 10
 #define GAME_POINTS_DRAWER  5
 
+// Maximum words in stack (đủ cho 10 người * 10 vòng = 100 từ)
+#define MAX_WORDS_STACK 200
+
 typedef struct {
     int user_id;
     int score;
     int words_guessed;
     int rounds_won;
 } player_score_t;
+
+// Structure để lưu từ và category trong stack
+typedef struct {
+    char word[64];
+    char category[64];
+} word_entry_t;
 
 typedef struct game_state {
     room_t* room;
@@ -26,6 +35,7 @@ typedef struct game_state {
     int drawer_id;
     int drawer_index; // index trong room->players[]
     char current_word[64];
+    char current_category[64]; // Category của từ hiện tại
     int word_length;
     bool word_guessed;
     time_t round_start_time;
@@ -34,6 +44,10 @@ typedef struct game_state {
     player_score_t scores[MAX_PLAYERS_PER_ROOM];
     int score_count;
     bool game_ended;
+    // Stack để lưu từ đã chọn trước
+    word_entry_t word_stack[MAX_WORDS_STACK];
+    int word_stack_top; // Index của từ tiếp theo sẽ pop (0 = từ đầu tiên)
+    int word_stack_size; // Số lượng từ trong stack
 } game_state_t;
 
 /**

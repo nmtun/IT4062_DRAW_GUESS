@@ -17,15 +17,19 @@ class MessageBuffer {
             const length = this.buffer.readUInt16BE(1);
             const totalLength = 3 + length;
             
+            Logger.debug(`[MessageBuffer] Checking message: type=0x${type.toString(16)}, length=${length}, total=${totalLength}, buffer=${this.buffer.length}`);
+            
             if (this.buffer.length >= totalLength) {
                 // Có đủ data cho một message hoàn chỉnh
                 const messageData = this.buffer.slice(0, totalLength);
                 messages.push(messageData);
+                Logger.info(`[MessageBuffer] Extracted message: type=0x${type.toString(16)}, length=${totalLength}`);
                 
                 // Cắt bỏ message đã xử lý
                 this.buffer = this.buffer.slice(totalLength);
             } else {
                 // Chưa đủ data, chờ thêm
+                Logger.debug(`[MessageBuffer] Incomplete message: need ${totalLength}, have ${this.buffer.length}`);
                 break;
             }
         }

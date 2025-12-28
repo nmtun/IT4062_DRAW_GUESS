@@ -51,13 +51,18 @@ int protocol_handle_chat_message(server_t* server, int client_index, const messa
     }
     if (text[0] == '\0') return -1;
 
-    // Filter guess words: neu dang choi va message == current_word thi treat nhu guess (khong broadcast chat)
+    // Filter guess words: neu dang choi va message == current_word thi treat nhu guess
+    // Nếu guess đúng (return 0): không broadcast chat
+    // Nếu guess sai (return -1): tiếp tục broadcast chat như tin nhắn thông thường
     if (room->state == ROOM_PLAYING && room->game && room->game->current_word[0] != '\0') {
         if (client->user_id != room->game->drawer_id) {
             // delegate to guess flow
-            if (protocol_process_guess(server, client_index, room, text) == 0) {
+            int guess_result = protocol_process_guess(server, client_index, room, text);
+            if (guess_result == 0) {
+                // Guess đúng, không broadcast chat
                 return 0;
             }
+            // guess_result == -1: guess sai, tiếp tục broadcast chat như tin nhắn thông thường
         }
     }
 

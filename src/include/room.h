@@ -35,6 +35,7 @@ typedef struct
     int active_players[MAX_PLAYERS_PER_ROOM]; // Mảng đánh dấu người chơi đang active (1) hay đang chờ (0)
     int max_players;                          // Số người chơi tối đa
     int total_rounds;                         // Số round trong game
+    char difficulty[16];                      // Mức độ khó: "easy", "medium", "hard" (mặc định "easy")
     room_state_t state;                       // Trạng thái phòng
     game_state_t *game;                       // Con trỏ đến game state (NULL nếu chưa chơi)
     time_t created_at;                        // Thời gian tạo phòng
@@ -46,9 +47,10 @@ typedef struct
  * @param owner_id User ID của người tạo phòng
  * @param max_players Số người chơi tối đa (2-8)
  * @param rounds Số round trong game
+ * @param difficulty Mức độ khó: "easy", "medium", "hard" (NULL hoặc rỗng = "easy")
  * @return Con trỏ đến room_t nếu thành công, NULL nếu thất bại
  */
-room_t *room_create(const char *room_name, int owner_id, int max_players, int rounds);
+room_t *room_create(const char *room_name, int owner_id, int max_players, int rounds, const char *difficulty);
 
 /**
  * Hủy phòng chơi và giải phóng bộ nhớ

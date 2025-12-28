@@ -39,12 +39,16 @@ export default function GameRoom({
   const [timeLeft, setTimeLeft] = useState(externalTimeLeft);
   const [word, setWord] = useState(externalWord); // drawer sees word, others see ""
   const [wordLength, setWordLength] = useState(0);
+  const [category, setCategory] = useState(''); // Category của từ hiện tại
   const [timeLimit, setTimeLimit] = useState(DEFAULT_ROUND_TIME);
   const [players, setPlayers] = useState(externalPlayers);
   const [maxPlayers, setMaxPlayers] = useState(10);
   const [chatMessages, setChatMessages] = useState(messages);
   const [roundStartMs, setRoundStartMs] = useState(0);
   const [currentDrawerId, setCurrentDrawerId] = useState(null);
+  const [currentRound, setCurrentRound] = useState(0);
+  const [playerCount, setPlayerCount] = useState(0);
+  const [totalRounds, setTotalRounds] = useState(0);
   const timerRef = useRef(null);
 
   const isOwner = useMemo(() => {
@@ -60,6 +64,20 @@ export default function GameRoom({
     return Array.from({ length: len }).map(() => '_').join(' ');
   }, [gameState, isDrawing, word, wordLength]);
 
+  // Tính vòng hiện tại: vòng = Math.floor((current_round - 1) / player_count) + 1
+  const currentCycle = useMemo(() => {
+    if (currentRound <= 0 || playerCount <= 0) {
+      return 0;
+    }
+    const cycle = Math.floor((currentRound - 1) / playerCount) + 1;
+    return cycle;
+  }, [currentRound, playerCount]);
+
+  // Tính tổng số vòng: total_rounds từ room (số vòng gốc)
+  const totalCycles = useMemo(() => {
+    return totalRounds > 0 ? totalRounds : 0;
+  }, [totalRounds]);
+
   // Kết nối + join room và subscribe events
   useEffect(() => {
     if (!roomId) return;
@@ -74,6 +92,11 @@ export default function GameRoom({
       // Cập nhật maxPlayers nếu có
       if (typeof data.max_players === 'number') {
         setMaxPlayers(data.max_players);
+      }
+
+      // Cập nhật player_count
+      if (typeof data.player_count === 'number') {
+        setPlayerCount(data.player_count);
       }
 
       const meId = myUserIdRef.current;
@@ -113,7 +136,7 @@ export default function GameRoom({
     };
 
     const handleGameStart = (data) => {
-      // data: { drawer_id, word_length, time_limit, round_start_ms, word }
+      // data: { drawer_id, word_length, time_limit, round_start_ms, current_round, player_count, total_rounds, word, category }
       if (!data) return;
       setGameState('playing');
       setWordLength(typeof data.word_length === 'number' ? data.word_length : 0);
@@ -123,24 +146,45 @@ export default function GameRoom({
       setTimeLimit(tl);
       setTimeLeft(tl);
 
+      // Cập nhật thông tin vòng
+      const cr = typeof data.current_round === 'number' && !isNaN(data.current_round) ? data.current_round : 0;
+      const pc = typeof data.player_count === 'number' && !isNaN(data.player_count) ? data.player_count : (players.length > 0 ? players.length : 0);
+      const tr = typeof data.total_rounds === 'number' && !isNaN(data.total_rounds) ? data.total_rounds : 0;
+      
+      setCurrentRound(cr);
+      setPlayerCount(pc);
+      setTotalRounds(tr);
+
       const drawerId = typeof data.drawer_id === 'number' ? data.drawer_id : parseInt(data.drawer_id, 10);
       const meId = myUserIdRef.current;
       const amDrawer = meId != null && drawerId === meId;
       setCurrentDrawerId(drawerId);
       setIsDrawing(!!amDrawer);
       setWord(amDrawer ? (data.word || '') : '');
+      
+      // Set category (tất cả người chơi đều nhận category)
+      setCategory(data.category || '');
 
       // update player drawing badge
       setPlayers((prev) => (prev || []).map(p => ({ ...p, isDrawing: p.id === drawerId })));
 
       // clear canvas on each new round
-      try { canvasApiRef.current?.clear?.(); } catch (_) { }
+      try { 
+        canvasApiRef.current?.clear?.(); 
+      } catch {
+        // Ignore errors when clearing canvas
+      }
     };
 
     const handleDrawBroadcast = (data) => {
       // data: { action, x1, y1, x2, y2, colorHex, width }
       if (!data) return;
-      try { canvasApiRef.current?.applyRemoteDraw?.(data); } catch (_) { }
+      try { 
+        canvasApiRef.current?.applyRemoteDraw?.(data); 
+      } catch (err) {
+        // Ignore errors when applying remote draw
+        console.warn('Error applying remote draw:', err);
+      }
     };
 
     const handleCorrectGuess = (data) => {
@@ -188,6 +232,7 @@ export default function GameRoom({
       setIsDrawing(false);
       setWord('');
       setWordLength(0);
+      setCategory('');
     };
 
     const handleGameEnd = (data) => {
@@ -201,6 +246,7 @@ export default function GameRoom({
       setIsDrawing(false);
       setWord('');
       setWordLength(0);
+      setCategory('');
     };
 
     const subscribe = () => {
@@ -341,20 +387,10 @@ export default function GameRoom({
 
   const handleSendMessage = (text) => {
     const services = getServices();
+    // Luôn gửi chat message, server sẽ tự động xử lý như guess nếu đang chơi và không phải drawer
     services.sendChatMessage(text);
-    setChatMessages((prev) => [
-      ...(prev || []),
-      { type: 'self', username: user?.username || 'Me', text }
-    ]);
-  };
-
-  const handleSendGuess = (guess) => {
-    const services = getServices();
-    services.guessWord(guess);
-    setChatMessages((prev) => [
-      ...(prev || []),
-      { type: 'self', username: user?.username || 'Me', text: guess }
-    ]);
+    // Không thêm vào chatMessages ngay vì server sẽ broadcast lại
+    // Chỉ thêm nếu là tin nhắn chat thông thường (không phải guess)
   };
 
   const handleStartGame = () => {
@@ -364,65 +400,81 @@ export default function GameRoom({
 
   return (
     <div className="game-room-page">
-      {/* Header */}
-      <header className="game-header">
-        <div className="header-left">
-          <button className="back-btn" onClick={handleLeaveRoom}>
-            Quay lại
-          </button>
-        </div>
-        <div className="header-center">
-          <div className="timer">
-            <span className="timer-icon">⏱️</span>
-            <span className="timer-text">{timeLeft}s</span>
-          </div>
-        </div>
-        <div className="header-right">
-          {gameState !== 'playing' && isOwner && players.length >= 2 && (
-            <button className="back-btn" onClick={handleStartGame}>
-              Bắt đầu
-            </button>
-          )}
-        </div>
-      </header>
-
       {/* Main Game Area */}
       <main className="game-main">
+        {/* Header thông tin chung */}
+        <div className="game-info-bar">
+          <button className="leave-btn" onClick={handleLeaveRoom}>
+            Rời phòng
+          </button>
+          <div className="word-display-area">
+            {gameState === 'playing' && (
+              <div className="word-display-box">
+                {category && (
+                  <div className="category-display">Chủ đề: {category}</div>
+                )}
+                {isDrawing ? (
+                  <>
+                    <span className="word-label">Từ của bạn:</span>
+                    <span className="word-text">{displayWord || '...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="word-label">Đoán từ:</span>
+                    <span className="word-text">{displayWord || '...'}</span>
+                  </>
+                )}
+              </div>
+            )}
+            {gameState === 'waiting' && (
+              <div className="word-display-box waiting-text">
+                Chờ bắt đầu...
+              </div>
+            )}
+            {gameState === 'finished' && (
+              <div className="word-display-box finished-text">
+                Kết thúc
+              </div>
+            )}
+          </div>
+          <div className="game-info-right">
+            <div className="round-info">
+              <span className="round-label">Vòng:</span>
+              <span className="round-value">
+                {currentCycle > 0 ? currentCycle : (currentRound > 0 && playerCount > 0 ? Math.floor((currentRound - 1) / playerCount) + 1 : '?')}
+              </span>
+              {totalCycles > 0 && (
+                <span className="round-total">/ {totalCycles}</span>
+              )}
+            </div>
+            <div className="timer">
+              <span className="timer-icon">⏱️</span>
+              <span className="timer-text">{timeLeft}s</span>
+            </div>
+          </div>
+        </div>
+
         <div className="game-layout">
           {/* Left Panel - Player List */}
           <aside className="game-sidebar left">
-            <PlayerList players={players} currentUserId={user?.id} maxPlayers={maxPlayers} />
+            <div className="player-list-wrapper">
+              <PlayerList players={players} currentUserId={user?.id} maxPlayers={maxPlayers} />
+              {gameState !== 'playing' && isOwner && players.length >= 2 && (
+                <button className="start-game-btn" onClick={handleStartGame}>
+                  Bắt đầu
+                </button>
+              )}
+            </div>
           </aside>
 
           {/* Center Panel - Canvas */}
           <section className="game-center">
-            <div className="game-status">
-              {gameState === 'waiting' && (
-                <div className="status-banner waiting">
-                  <h2>ĐANG CHỜ</h2>
-                  <p>Chờ chủ phòng bắt đầu game...</p>
-                </div>
-              )}
-              {gameState === 'playing' && isDrawing && (
-                <div className="status-banner drawing">
-                  <h2>BẠN ĐANG VẼ</h2>
-                  <p className="word-display">{displayWord || '...'}</p>
-                </div>
-              )}
-              {gameState === 'playing' && !isDrawing && (
-                <div className="status-banner guessing">
-                  <h2>ĐOÁN TỪ</h2>
-                  <p className="word-display">{displayWord || '...'}</p>
-                </div>
-              )}
-              {gameState === 'finished' && (
-                <div className="status-banner waiting">
-                  <h2>KẾT THÚC</h2>
-                  <p>Game đã kết thúc.</p>
-                </div>
-              )}
-            </div>
-            <Canvas ref={canvasApiRef} canDraw={isDrawing && gameState === 'playing'} onDraw={handleDraw} />
+            <Canvas 
+              ref={canvasApiRef} 
+              canDraw={isDrawing && gameState === 'playing'} 
+              onDraw={handleDraw}
+              isWaiting={gameState === 'waiting'}
+            />
           </section>
 
           {/* Right Panel - Chat */}
@@ -430,7 +482,6 @@ export default function GameRoom({
             <ChatPanel
               messages={chatMessages}
               onSendMessage={handleSendMessage}
-              onSendGuess={handleSendGuess}
               isWaiting={gameState !== 'playing' || isDrawing}
             />
           </aside>

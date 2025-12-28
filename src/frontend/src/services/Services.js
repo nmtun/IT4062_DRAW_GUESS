@@ -419,13 +419,14 @@ class Services {
     /**
      * Tạo phòng mới
      */
-    createRoom(roomName, maxPlayers = 8, rounds = 3) {
+    createRoom(roomName, maxPlayers = 8, rounds = 3, difficulty = 'easy') {
         const message = {
             type: 'create_room',
             data: {
                 room_name: roomName.trim(),
                 max_players: maxPlayers,
-                rounds: rounds
+                rounds: rounds,
+                difficulty: difficulty || 'easy'
             }
         };
         return this.send(message);

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
 
 // db global dang duoc khai bao trong main.c (server hien chua nhung db vao server_t)
 extern db_connection_t* db;
@@ -45,24 +46,88 @@ static void ensure_scores_initialized(game_state_t* game) {
 game_state_t* game_init(room_t* room, int total_rounds, int time_limit_seconds) {
     if (!room) return NULL;
     if (total_rounds <= 0) total_rounds = 1;
-    if (total_rounds > MAX_ROUNDS) total_rounds = MAX_ROUNDS;
     if (time_limit_seconds <= 0) time_limit_seconds = 60;
 
     game_state_t* game = (game_state_t*)calloc(1, sizeof(game_state_t));
     if (!game) return NULL;
 
+    // Tinh tong so tu can: so nguoi choi * so vong
+    int total_words_needed = room->player_count * total_rounds;
+    if (total_words_needed > MAX_WORDS_STACK) total_words_needed = MAX_WORDS_STACK;
+
     game->room = room;
     game->current_round = 0;
-    game->total_rounds = total_rounds;
+    game->total_rounds = total_words_needed;
     game->time_limit = time_limit_seconds;
     game->drawer_id = -1;
     game->drawer_index = 0;
     game->current_word[0] = '\0';
+    game->current_category[0] = '\0';
     game->word_length = 0;
     game->word_guessed = false;
     game->round_start_time = 0;
     game->game_ended = false;
     game->db_round_id = 0;
+    game->word_stack_top = 0;
+    game->word_stack_size = 0;
+
+    // Pre-select từ: lấy tất cả từ theo difficulty, shuffle 5 lần, lấy n từ đầu
+    if (db) {
+        char all_words[500][64];
+        char all_categories[500][64];
+        int word_count = db_get_all_words_by_difficulty(db, room->difficulty, all_words, all_categories, 500);
+        
+        if (word_count > 0) {
+            // Chuyển sang word_entry_t để shuffle
+            word_entry_t temp_words[500];
+            for (int i = 0; i < word_count && i < 500; i++) {
+                strncpy(temp_words[i].word, all_words[i], 63);
+                temp_words[i].word[63] = '\0';
+                strncpy(temp_words[i].category, all_categories[i], 63);
+                temp_words[i].category[63] = '\0';
+            }
+            
+            // Shuffle 5 lần
+            srand((unsigned int)time(NULL));
+            for (int t = 0; t < 5; t++) {
+                for (int i = 0; i < word_count; i++) {
+                    int j = rand() % word_count;
+                    // Swap
+                    word_entry_t temp = temp_words[i];
+                    temp_words[i] = temp_words[j];
+                    temp_words[j] = temp;
+                }
+            }
+            
+            // Lấy n từ đầu tiên (n = total_words_needed)
+            int words_to_take = (word_count < total_words_needed) ? word_count : total_words_needed;
+            for (int i = 0; i < words_to_take; i++) {
+                strncpy(game->word_stack[i].word, temp_words[i].word, 63);
+                game->word_stack[i].word[63] = '\0';
+                strncpy(game->word_stack[i].category, temp_words[i].category, 63);
+                game->word_stack[i].category[63] = '\0';
+            }
+            game->word_stack_size = words_to_take;
+            
+            printf("[GAME] Pre-selected %d words from difficulty '%s' (total available: %d)\n",
+                   words_to_take, room->difficulty, word_count);
+        } else {
+            // Fallback: nếu không có từ, tạo từ mặc định
+            printf("[GAME] Warning: No words found for difficulty '%s', using fallback\n", room->difficulty);
+            strncpy(game->word_stack[0].word, "cat", 63);
+            game->word_stack[0].word[63] = '\0';
+            strncpy(game->word_stack[0].category, "animal", 63);
+            game->word_stack[0].category[63] = '\0';
+            game->word_stack_size = 1;
+        }
+    } else {
+        // Fallback nếu không có DB
+        strncpy(game->word_stack[0].word, "cat", 63);
+        game->word_stack[0].word[63] = '\0';
+        strncpy(game->word_stack[0].category, "animal", 63);
+        game->word_stack[0].category[63] = '\0';
+        game->word_stack_size = 1;
+    }
 
     // chon drawer_index ban dau: owner index neu co, fallback 0
     int owner_idx = -1;
@@ -88,9 +153,13 @@ static int pick_next_drawer_index(game_state_t* game) {
     const int n = game->room->player_count;
     if (n <= 0) return -1;
 
-    // tim user active tiep theo (active_players[i] == 1)
-    for (int step = 1; step <= n; step++) {
-        int idx = (game->drawer_index + step) % n;
+    // Chuyen sang nguoi tiep theo theo thu tu vao phong
+    // Thu tu ve se la thu tu vao phong cho don gian
+    int next_idx = (game->drawer_index + 1) % n;
+    
+    // Tim nguoi active tiep theo neu nguoi tiep theo khong active
+    for (int step = 0; step < n; step++) {
+        int idx = (next_idx + step) % n;
         if (game->room->active_players[idx]) return idx;
     }
 
@@ -101,27 +170,24 @@ static int pick_next_drawer_index(game_state_t* game) {
 static void assign_new_word(game_state_t* game) {
     if (!game) return;
 
-    char word[64] = {0};
-    int ok = -1;
-
-    // Tam thoi: chon difficulty theo round (1/3 easy, 1/3 medium, 1/3 hard)
-    const char* diff = "medium";
-    if (game->total_rounds > 0) {
-        int phase = (game->current_round - 1) % 3;
-        diff = (phase == 0) ? "easy" : (phase == 1) ? "medium" : "hard";
+    // Pop từ stack (FIFO - lấy từ đầu)
+    if (game->word_stack_top < game->word_stack_size) {
+        word_entry_t* entry = &game->word_stack[game->word_stack_top];
+        safe_copy_word(game->current_word, sizeof(game->current_word), entry->word);
+        safe_copy_word(game->current_category, sizeof(game->current_category), entry->category);
+        game->word_length = (int)strlen(game->current_word);
+        game->word_stack_top++;
+        
+        printf("[GAME] Pop word from stack: '%s' (category: '%s'), remaining: %d\n",
+               game->current_word, game->current_category, 
+               game->word_stack_size - game->word_stack_top);
+    } else {
+        // Stack rỗng, fallback
+        printf("[GAME] Warning: Word stack is empty, using fallback\n");
+        safe_copy_word(game->current_word, sizeof(game->current_word), "cat");
+        safe_copy_word(game->current_category, sizeof(game->current_category), "animal");
+        game->word_length = (int)strlen(game->current_word);
     }
-
-    if (db) {
-        ok = db_get_random_word(db, diff, word, sizeof(word));
-    }
-
-    if (ok != 0 || word[0] == '\0') {
-        // fallback neu DB khong san sang
-        safe_copy_word(word, sizeof(word), "cat");
-    }
-
-    safe_copy_word(game->current_word, sizeof(game->current_word), word);
-    game->word_length = (int)strlen(game->current_word);
 }
 
 bool game_start_round(game_state_t* game) {
@@ -234,6 +300,7 @@ void game_end_round(game_state_t* game, bool success, int winner_user_id) {
 
     // reset word/timer cho round hien tai (round moi se set lai)
     game->current_word[0] = '\0';
+    game->current_category[0] = '\0';
     game->word_length = 0;
     game->round_start_time = 0;
 

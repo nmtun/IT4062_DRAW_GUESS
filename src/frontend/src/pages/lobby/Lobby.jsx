@@ -193,13 +193,13 @@ export default function Lobby({ onJoinRoom, onCreateRoom, rooms = [] }) {
     }
   };
 
-  const handleCreateRoom = async (roomName, maxPlayers, rounds) => {
+  const handleCreateRoom = async (roomName, maxPlayers, rounds, difficulty = 'easy') => {
     const services = getServices();
     setIsLoading(true);
 
     try {
       // Gửi yêu cầu tạo phòng
-      const sent = services.createRoom(roomName, maxPlayers, rounds);
+      const sent = services.createRoom(roomName, maxPlayers, rounds, difficulty);
       if (!sent) {
         setIsLoading(false);
         alert('Không thể kết nối đến server');

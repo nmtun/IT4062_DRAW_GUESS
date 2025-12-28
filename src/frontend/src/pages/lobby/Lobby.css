@@ -424,6 +424,8 @@ html, body {
   overflow-y: auto;
   overflow-x: hidden; /* Ẩn thanh scroll ngang */
   padding-right: 8px;
+  padding-top: 6px; /* Thêm padding để tránh bị cắt khi hover */
+  padding-bottom: 6px;
   box-sizing: border-box;
 }
 

@@ -450,6 +450,48 @@ int db_get_random_word(db_connection_t* db, const char* difficulty, char* out_wo
     return 0;
 }
 
+int db_get_all_words_by_difficulty(db_connection_t* db, const char* difficulty, 
+                                   char words[][64], char categories[][64], int max_words) {
+    if (!db || !db->conn || !words || !categories || max_words <= 0) {
+        fprintf(stderr, "db_get_all_words_by_difficulty: tham so khong hop le\n");
+        return -1;
+    }
+
+    const int filter_by_diff = (difficulty && difficulty[0] != '\0' && difficulty_is_valid(difficulty));
+
+    MYSQL_RES* res = NULL;
+    if (filter_by_diff) {
+        res = db_execute_query(db,
+            "SELECT word, category FROM words WHERE difficulty = ? ORDER BY id",
+            difficulty
+        );
+    } else {
+        res = db_execute_query(db,
+            "SELECT word, category FROM words ORDER BY id"
+        );
+    }
+
+    if (!res) return -1;
+
+    int count = 0;
+    MYSQL_ROW row;
+    while ((row = mysql_fetch_row(res)) && count < max_words) {
+        if (!row[0] || !row[1]) continue;
+        
+        const char* word = row[0];
+        const char* category = row[1] ? row[1] : "general";
+        
+        strncpy(words[count], word, 63);
+        words[count][63] = '\0';
+        strncpy(categories[count], category, 63);
+        categories[count][63] = '\0';
+        count++;
+    }
+
+    mysql_free_result(res);
+    return count;
+}
+
 // ---------------------------
 // Phase 6 (21-24): Persistence
 // ---------------------------

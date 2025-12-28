@@ -1,11 +1,8 @@
 .player-list {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  height: 89%;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  flex: 1;
+  min-height: 0;
 }
 
 .player-list-header {
@@ -152,7 +149,7 @@
 @media (max-width: 968px) {
   .player-list {
     padding: 15px;
-    height: 85%;
+    height: 90%;
   }
   
   .player-list-header {
@@ -198,7 +195,7 @@
 @media (max-width: 768px) {
   .player-list {
     padding: 12px;
-    height: 82%;
+    height: 90%;
   }
   
   .player-list-header h3 {
@@ -229,7 +226,7 @@
 @media (max-width: 600px) {
   .player-list {
     padding: 10px;
-    height: 80%;
+    height: 90%;
   }
   
   .player-list-header {

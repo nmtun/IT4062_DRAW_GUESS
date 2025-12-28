@@ -2,42 +2,26 @@
   background: white;
   border-radius: 12px;
   padding: 20px;
-  height: 89%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-height: 0;
 }
 
-.chat-tabs {
-  display: flex;
-  gap: 8px;
+.chat-header {
   margin-bottom: 15px;
   border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 10px;
+  flex-shrink: 0;
 }
 
-.chat-tab {
-  flex: 1;
-  padding: 12px;
-  border: none;
-  background: transparent;
-  color: #666;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  border-bottom: 3px solid transparent;
-  transition: all 0.3s;
-  position: relative;
-  top: 2px;
-}
-
-.chat-tab:hover {
+.chat-header h3 {
+  margin: 0;
   color: #4a90e2;
-}
-
-.chat-tab.active {
-  color: #4a90e2;
-  border-bottom-color: #4a90e2;
+  font-size: 1.2rem;
   font-weight: bold;
+  text-align: center;
 }
 
 .chat-messages {
@@ -47,8 +31,7 @@
   padding: 10px;
   background: #f8f9fa;
   border-radius: 8px;
-  min-height: 200px;
-  max-height: 400px;
+  min-height: 0;
 }
 
 .message {
@@ -96,7 +79,7 @@
 .chat-input-form {
   display: flex;
   gap: 10px;
-  margin-top: 140px;
+  flex-shrink: 0;
 }
 
 .chat-input {
@@ -163,7 +146,7 @@
 @media (max-width: 968px) {
   .chat-panel {
     padding: 15px;
-    height: 85%;
+    height: 90%;
   }
   
   .chat-tabs {
@@ -207,7 +190,7 @@
 @media (max-width: 768px) {
   .chat-panel {
     padding: 12px;
-    height: 82%;
+    height: 90%;
   }
   
   .chat-tabs {
@@ -257,7 +240,7 @@
 @media (max-width: 600px) {
   .chat-panel {
     padding: 10px;
-    height: 80%;
+    height: 90%;
   }
   
   .chat-tabs {
@@ -311,7 +294,7 @@
 @media (max-width: 400px) {
   .chat-panel {
     padding: 8px;
-    height: 75%;
+    height: 90%;
   }
   
   .chat-tab {

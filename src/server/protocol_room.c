@@ -508,9 +508,16 @@ int protocol_handle_create_room(server_t *server, int client_index, const messag
 
     int max_players = (int)req->max_players;
     int rounds = (int)req->rounds;
+    
+    char difficulty[16];
+    strncpy(difficulty, req->difficulty, sizeof(difficulty) - 1);
+    difficulty[sizeof(difficulty) - 1] = '\0';
+    if (difficulty[0] == '\0') {
+        strncpy(difficulty, "easy", sizeof(difficulty) - 1);
+    }
 
-    printf("Nhan CREATE_ROOM tu client %d: room_name=%s, max_players=%d, rounds=%d\n",
-           client_index, room_name, max_players, rounds);
+    printf("Nhan CREATE_ROOM tu client %d: room_name=%s, max_players=%d, rounds=%d, difficulty=%s\n",
+           client_index, room_name, max_players, rounds, difficulty);
 
     // Validate
     if (strlen(room_name) == 0)
@@ -543,7 +550,7 @@ int protocol_handle_create_room(server_t *server, int client_index, const messag
     }
 
     // Tao phong
-    room_t *room = room_create(room_name, client->user_id, max_players, rounds);
+    room_t *room = room_create(room_name, client->user_id, max_players, rounds, difficulty);
     if (!room)
     {
         protocol_send_create_room_response(client->fd, STATUS_ERROR, -1,

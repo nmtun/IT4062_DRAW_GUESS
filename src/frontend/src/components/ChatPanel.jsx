@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import './ChatPanel.css';
 
-export default function ChatPanel({ messages = [], onSendMessage, onSendGuess, isWaiting = false }) {
-  const [activeTab, setActiveTab] = useState('answer');
+export default function ChatPanel({ messages = [], onSendMessage, isWaiting = false }) {
   const [inputValue, setInputValue] = useState('');
 
   const displayMessages = messages;
@@ -11,33 +10,17 @@ export default function ChatPanel({ messages = [], onSendMessage, onSendGuess, i
     e.preventDefault();
     if (!inputValue.trim()) return;
 
-    if (activeTab === 'answer') {
-      if (onSendGuess) {
-        onSendGuess(inputValue);
-      }
-    } else {
-      if (onSendMessage) {
-        onSendMessage(inputValue);
-      }
+    // Luôn gửi chat message, server sẽ tự động xử lý như guess nếu đang chơi
+    if (onSendMessage) {
+      onSendMessage(inputValue);
     }
     setInputValue('');
   };
 
   return (
     <div className="chat-panel">
-      <div className="chat-tabs">
-        <button
-          className={`chat-tab ${activeTab === 'answer' ? 'active' : ''}`}
-          onClick={() => setActiveTab('answer')}
-        >
-          TRẢ LỜI
-        </button>
-        <button
-          className={`chat-tab ${activeTab === 'chat' ? 'active' : ''}`}
-          onClick={() => setActiveTab('chat')}
-        >
-          TRÒ CHUYỆN
-        </button>
+      <div className="chat-header">
+        <h3>CHAT</h3>
       </div>
 
       <div className="chat-messages">
@@ -59,10 +42,9 @@ export default function ChatPanel({ messages = [], onSendMessage, onSendGuess, i
         <input
           type="text"
           className="chat-input"
-          placeholder={activeTab === 'answer' ? 'Đang chờ...' : 'Nhập tin nhắn...'}
+          placeholder={isWaiting ? 'Nhập tin nhắn...' : 'Nhập đáp án hoặc tin nhắn...'}
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          disabled={activeTab === 'answer' && isWaiting}
         />
         <button type="submit" className="chat-send-btn">
           Gửi

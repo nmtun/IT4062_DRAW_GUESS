@@ -72,10 +72,13 @@ class Gateway {
 
                     tcpClient.on('data', (data) => {
                         try {
+                            Logger.info(`[Gateway] Received raw TCP data: ${data.length} bytes, hex: ${data.toString('hex').substring(0, 100)}...`);
                             // Sử dụng message buffer để xử lý data có thể bị phân mảnh
                             const messages = messageBuffer.addData(data);
+                            Logger.info(`[Gateway] Message buffer parsed ${messages.length} complete message(s)`);
 
-                            messages.forEach(messageData => {
+                            messages.forEach((messageData, index) => {
+                                Logger.info(`[Gateway] Parsing message ${index + 1}/${messages.length}, length: ${messageData.length}`);
                                 const message = this.parseTcpMessage(messageData);
                                 Logger.info(`[Gateway] Sending message to WebSocket client: ${message.type}`, message);
                                 if (ws.readyState === WebSocket.OPEN) {
@@ -85,6 +88,7 @@ class Gateway {
                             });
                         } catch (error) {
                             Logger.error('Error parsing TCP data:', error);
+                            Logger.error('Error stack:', error.stack);
                             this.performanceMonitor.incrementErrors();
                         }
                     });
@@ -255,19 +259,22 @@ class Gateway {
 
     // Parse binary message từ TCP server thành JSON
     parseTcpMessage(data) {
+        Logger.info(`[Gateway] parseTcpMessage: data length=${data.length}`);
         if (data.length < 3) {
             throw new Error('Message too short');
         }
 
         const type = data.readUInt8(0);
         const length = data.readUInt16BE(1);
+        Logger.info(`[Gateway] parseTcpMessage: type=0x${type.toString(16)}, payload_length=${length}, total_expected=${3 + length}`);
 
         if (data.length < 3 + length) {
-            throw new Error('Incomplete message');
+            throw new Error(`Incomplete message: have ${data.length} bytes, need ${3 + length} bytes`);
         }
 
         const payload = data.slice(3, 3 + length);
         const messageType = this.getMessageTypeName(type);
+        Logger.info(`[Gateway] parseTcpMessage: messageType="${messageType}", payload.length=${payload.length}`);
 
         let parsedData = {};
 
@@ -300,7 +307,11 @@ class Gateway {
                 parsedData = this.parseDrawBroadcast(payload);
                 break;
             case 0x20: // GAME_START
+                Logger.info(`[Gateway] Received GAME_START, payload length: ${payload.length}`);
                 parsedData = this.parseGameStart(payload);
+                if (parsedData.error) {
+                    Logger.error(`[Gateway] Error parsing GAME_START: ${parsedData.error}`);
+                }
                 break;
             case 0x25: // CORRECT_GUESS
                 parsedData = this.parseCorrectGuess(payload);
@@ -400,10 +411,12 @@ class Gateway {
     }
 
     createCreateRoomPayload(data) {
-        const buffer = Buffer.alloc(34); // 32 + 1 + 1
+        // create_room_request_t: room_name(32) + max_players(1) + rounds(1) + difficulty(16) = 50 bytes
+        const buffer = Buffer.alloc(50);
         buffer.write(data.room_name || '', 0, 32, 'utf8');
         buffer.writeUInt8(data.max_players || 2, 32);
         buffer.writeUInt8(data.rounds || 1, 33);
+        buffer.write(data.difficulty || 'easy', 34, 16, 'utf8');
         return buffer;
     }
 
@@ -645,9 +658,12 @@ class Gateway {
     // Game payload parsers
     // --------------------------
     parseGameStart(payload) {
-        // drawer_id(4) + word_length(1) + time_limit(2) + round_start_ms(8) + word(64) = 79 bytes
-        if (payload.length < 79) {
-            Logger.warn('GAME_START payload too short');
+        // drawer_id(4) + word_length(1) + time_limit(2) + round_start_ms(8) 
+        // + current_round(4) + player_count(1) + total_rounds(1) + word(64) + category(64) = 149 bytes
+        Logger.info(`[Gateway] parseGameStart: payload length=${payload.length}, expected=149`);
+        if (payload.length < 85) {
+            Logger.warn(`[Gateway] GAME_START payload too short: ${payload.length} < 85`);
+            Logger.warn(`[Gateway] Payload hex: ${payload.toString('hex').substring(0, 100)}...`);
             return { error: 'Invalid payload' };
         }
         const drawer_id_raw = payload.readUInt32BE(0);
@@ -663,8 +679,18 @@ class Gateway {
             const lo = payload.readUInt32BE(11);
             round_start_ms = hi * 4294967296 + lo;
         }
-        const word = payload.slice(15, 79).toString('utf8').replace(/\0/g, '');
-        return { drawer_id, word_length, time_limit, round_start_ms, word };
+        const current_round_raw = payload.readUInt32BE(15);
+        const current_round = current_round_raw > 0x7FFFFFFF ? current_round_raw - 0x100000000 : current_round_raw;
+        const player_count = payload.readUInt8(19);
+        const total_rounds = payload.readUInt8(20);
+        const word = payload.slice(21, 85).toString('utf8').replace(/\0/g, '');
+        // Parse category (64 bytes starting at offset 85)
+        let category = '';
+        if (payload.length >= 149) {
+            category = payload.slice(85, 149).toString('utf8').replace(/\0/g, '');
+        }
+        Logger.info(`[Gateway] Parsed GAME_START: current_round=${current_round}, player_count=${player_count}, total_rounds=${total_rounds}, category=${category}`);
+        return { drawer_id, word_length, time_limit, round_start_ms, current_round, player_count, total_rounds, word, category };
     }
 
     parseCorrectGuess(payload) {

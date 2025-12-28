@@ -2,7 +2,7 @@ import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } f
 import './Canvas.css';
 
 const Canvas = forwardRef(function Canvas(
-  { canDraw = false, onDraw },
+  { canDraw = false, onDraw, isWaiting = false },
   ref
 ) {
   const canvasElRef = useRef(null);
@@ -121,6 +121,15 @@ const Canvas = forwardRef(function Canvas(
 
   return (
     <div className="canvas-container">
+      {isWaiting && (
+        <div className="canvas-waiting-overlay">
+          <div className="waiting-content">
+            <div className="hourglass-spinner">⏳</div>
+            <p className="waiting-text">Vui lòng chờ chủ phòng bắt đầu!</p>
+          </div>
+        </div>
+      )}
+
       <div className="canvas-tools">
         <div className="tool-group">
           <label>Màu:</label>
@@ -159,13 +168,9 @@ const Canvas = forwardRef(function Canvas(
         </button>
       </div>
 
-      {!canDraw && (
+      {!canDraw && !isWaiting && (
         <div className="canvas-overlay">
-          <div className="waiting-message">
-            <div className="waiting-icon">⏳</div>
-            <h3>ĐANG CHỜ</h3>
-            <p>Chỉ người vẽ mới thao tác được</p>
-          </div>
+          {/* Overlay để chặn vẽ, không hiển thị message */}
         </div>
       )}
 
@@ -186,6 +191,9 @@ const Canvas = forwardRef(function Canvas(
         }}
         onTouchEnd={stopDrawing}
       />
+      <div className="chicken-animation">
+        <img src="/assets/chicken-2.gif" alt="Chicken" className="chicken-image" />
+      </div>
     </div>
   );
 });

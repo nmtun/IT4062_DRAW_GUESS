@@ -67,7 +67,9 @@ static int broadcast_game_start(server_t* server, room_t* room) {
     if (!server || !room || !room->game) return -1;
 
     game_state_t* game = room->game;
-    uint8_t payload[79];
+    // Payload: drawer_id(4) + word_length(1) + time_limit(2) + round_start_ms(8) 
+    //          + current_round(4) + player_count(1) + total_rounds(1) + word(64) + category(64) = 149 bytes
+    uint8_t payload[149];
     memset(payload, 0, sizeof(payload));
     write_i32_be(payload + 0, (int32_t)game->drawer_id);
     payload[4] = (uint8_t)game->word_length;
@@ -75,8 +77,15 @@ static int broadcast_game_start(server_t* server, room_t* room) {
     // round_start_time is seconds in game_state -> convert to ms
     uint64_t start_ms = (uint64_t)game->round_start_time * 1000ULL;
     write_u64_be(payload + 7, start_ms);
+    // Thêm current_round, player_count và total_rounds để tính vòng hiện tại
+    write_i32_be(payload + 15, (int32_t)game->current_round);
+    payload[19] = (uint8_t)room->player_count;
+    payload[20] = (uint8_t)room->total_rounds; // Số vòng gốc (trước khi nhân với player_count)
+    printf("[PROTOCOL] GAME_START payload: current_round=%d, player_count=%d, total_rounds=%d\n",
+           game->current_round, room->player_count, room->total_rounds);
 
     // Send to each client in room; drawer gets the word, others empty
+    // Tất cả đều nhận category
     int sent = 0;
     for (int i = 0; i < MAX_CLIENTS; i++) {
         client_t* c = &server->clients[i];
@@ -84,10 +93,12 @@ static int broadcast_game_start(server_t* server, room_t* room) {
         if (!room_has_player(room, c->user_id)) continue;
 
         if (c->user_id == game->drawer_id) {
-            write_fixed_string(payload + 15, 64, game->current_word);
+            write_fixed_string(payload + 21, 64, game->current_word);
         } else {
-            write_fixed_string(payload + 15, 64, "");
+            write_fixed_string(payload + 21, 64, "");
         }
+        // Category được gửi cho tất cả người chơi
+        write_fixed_string(payload + 85, 64, game->current_category);
 
         if (protocol_send_message(c->fd, MSG_GAME_START, payload, (uint16_t)sizeof(payload)) == 0) {
             sent++;
@@ -259,7 +270,8 @@ int protocol_process_guess(server_t* server, int client_index, room_t* room, con
         write_i32_be(wp + 0, (int32_t)client->user_id);
         write_fixed_string(wp + 4, 64, guess);
         server_broadcast_to_room(server, room->room_id, MSG_WRONG_GUESS, wp, (uint16_t)sizeof(wp), -1);
-        return 0;
+        // Return -1 để báo rằng cần broadcast chat message (vì guess sai)
+        return -1;
     }
 
     // correct guess broadcast
