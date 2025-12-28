@@ -108,11 +108,16 @@ export default function GameRoom({
         if (playerId === meId && myAvatar) {
           playerAvatar = myAvatar;
         }
+        
+        // Tìm player hiện tại để giữ lại score (không reset về 0)
+        const existingPlayer = players.find(ep => ep.id === playerId);
+        const currentScore = existingPlayer ? (existingPlayer.score || 0) : 0;
+        
         return {
           id: playerId,
           username: p.username,
           avatar: playerAvatar,
-          score: 0,             // cập nhật từ game state khi có
+          score: currentScore,  // Giữ lại score hiện tại, không reset về 0
           isDrawing: currentDrawerId != null && playerId === currentDrawerId,
           isOwner: p.is_owner === 1
         };
@@ -165,6 +170,7 @@ export default function GameRoom({
       // Set category (tất cả người chơi đều nhận category)
       setCategory(data.category || '');
 
+
       // update player drawing badge
       setPlayers((prev) => (prev || []).map(p => ({ ...p, isDrawing: p.id === drawerId })));
 
@@ -189,18 +195,52 @@ export default function GameRoom({
 
     const handleCorrectGuess = (data) => {
       if (!data) return;
-      setChatMessages((prev) => [
-        ...(prev || []),
-        { type: 'system', username: '', text: `Người chơi ${data.player_id} đoán đúng! (+${data.points || 0})` }
-      ]);
-    };
-
-    const handleWrongGuess = (data) => {
-      if (!data) return;
-      setChatMessages((prev) => [
-        ...(prev || []),
-        { type: 'system', username: '', text: `Người chơi ${data.player_id} đoán: "${data.guess}"` }
-      ]);
+      console.log('[GameRoom] handleCorrectGuess received:', data);
+      const meId = myUserIdRef.current;
+      const isMe = meId != null && data.player_id === meId;
+      const guesserPoints = data.guesser_points || data.points || 0;
+      const drawerPoints = data.drawer_points || 0;
+      
+      // Cập nhật điểm: người đoán đúng và người vẽ (mỗi lần có người đoán đúng)
+      setPlayers((prev) => {
+        // Lấy username từ data (server gửi) hoặc từ players state hiện tại
+        let guesserUsername = data.username;
+        console.log('[GameRoom] Username from data:', guesserUsername);
+        if (!guesserUsername || guesserUsername.trim() === '') {
+          // Fallback: tìm từ players state hiện tại
+          const guesserPlayer = prev.find(p => p.id === data.player_id);
+          guesserUsername = guesserPlayer?.username || `Người chơi ${data.player_id}`;
+          console.log('[GameRoom] Username from players state:', guesserPlayer?.username, 'Final:', guesserUsername);
+        }
+        
+        // Hiển thị thông báo
+        if (isMe) {
+          setChatMessages((chatPrev) => [
+            ...(chatPrev || []),
+            { type: 'system', username: '', text: '🎉 Bạn đã đoán đúng! (+' + guesserPoints + ' điểm)' }
+          ]);
+        } else {
+          setChatMessages((chatPrev) => [
+            ...(chatPrev || []),
+            { type: 'system', username: '', text: `${guesserUsername} đã đoán đúng! (+${guesserPoints} điểm)` }
+          ]);
+        }
+        
+        const updated = (prev || []).map(p => {
+          if (p.id === data.player_id) {
+            // Cộng điểm cho người đoán đúng
+            return { ...p, score: (p.score || 0) + guesserPoints };
+          } else if (p.isDrawing) {
+            // Cộng điểm cho người vẽ (mỗi lần có người đoán đúng)
+            return { ...p, score: (p.score || 0) + drawerPoints };
+          }
+          return p;
+        });
+        
+        // Sort leaderboard giảm dần theo điểm
+        updated.sort((a, b) => (b.score || 0) - (a.score || 0));
+        return updated;
+      });
     };
 
     const handleChatBroadcast = (data) => {
@@ -262,7 +302,6 @@ export default function GameRoom({
       services.subscribe('game_start', handleGameStart);
       services.subscribe('draw_broadcast', handleDrawBroadcast);
       services.subscribe('correct_guess', handleCorrectGuess);
-      services.subscribe('wrong_guess', handleWrongGuess);
       services.subscribe('chat_broadcast', handleChatBroadcast);
       services.subscribe('round_end', handleRoundEnd);
       services.subscribe('game_end', handleGameEnd);
@@ -276,7 +315,6 @@ export default function GameRoom({
       services.unsubscribe('game_start', handleGameStart);
       services.unsubscribe('draw_broadcast', handleDrawBroadcast);
       services.unsubscribe('correct_guess', handleCorrectGuess);
-      services.unsubscribe('wrong_guess', handleWrongGuess);
       services.unsubscribe('chat_broadcast', handleChatBroadcast);
       services.unsubscribe('round_end', handleRoundEnd);
       services.unsubscribe('game_end', handleGameEnd);

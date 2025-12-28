@@ -48,6 +48,9 @@ typedef struct game_state {
     word_entry_t word_stack[MAX_WORDS_STACK];
     int word_stack_top; // Index của từ tiếp theo sẽ pop (0 = từ đầu tiên)
     int word_stack_size; // Số lượng từ trong stack
+    // Track những người đã đoán đúng trong round hiện tại
+    int guessed_user_ids[MAX_PLAYERS_PER_ROOM];
+    int guessed_count; // Số người đã đoán đúng (dùng để tính thứ tự và điểm)
 } game_state_t;
 
 /**

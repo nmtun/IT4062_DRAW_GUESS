@@ -44,7 +44,7 @@ export default function PlayerList({ players, currentUserId, startButton }) {
             </div>
             <div className="player-info">
               <div className="player-name">
-                {player.username}
+                {player.id === currentUserId ? 'Bạn' : player.username}
                 {player.isOwner && <span className="owner-badge">👑</span>}
               </div>
               <div className="player-score">{player.score || 0} điểm</div>

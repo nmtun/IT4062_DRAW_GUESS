@@ -29,18 +29,27 @@ static int find_score_index(game_state_t* game, int user_id) {
 }
 
 static void ensure_scores_initialized(game_state_t* game) {
-    if (!game || !game->room) return;
+    if (!game || !game->room) {
+        printf("[GAME] ERROR: ensure_scores_initialized called with invalid game or room\n");
+        return;
+    }
 
+    printf("[GAME] Initializing scores for %d players\n", game->room->player_count);
     game->score_count = 0;
     for (int i = 0; i < game->room->player_count && i < MAX_PLAYERS_PER_ROOM; i++) {
         const int uid = game->room->players[i];
-        if (uid <= 0) continue;
+        if (uid <= 0) {
+            printf("[GAME] WARNING: Player %d has invalid user_id\n", i);
+            continue;
+        }
         game->scores[game->score_count].user_id = uid;
         game->scores[game->score_count].score = 0;
         game->scores[game->score_count].words_guessed = 0;
         game->scores[game->score_count].rounds_won = 0;
+        printf("[GAME] Added score entry for user_id=%d at index %d\n", uid, game->score_count);
         game->score_count++;
     }
+    printf("[GAME] Initialized %d score entries\n", game->score_count);
 }
 
 game_state_t* game_init(room_t* room, int total_rounds, int time_limit_seconds) {
@@ -70,6 +79,7 @@ game_state_t* game_init(room_t* room, int total_rounds, int time_limit_seconds) 
     game->db_round_id = 0;
     game->word_stack_top = 0;
     game->word_stack_size = 0;
+    game->guessed_count = 0;
 
     // Pre-select từ: lấy tất cả từ theo difficulty, shuffle 5 lần, lấy n từ đầu
     if (db) {
@@ -216,6 +226,12 @@ bool game_start_round(game_state_t* game) {
     assign_new_word(game);
     game->word_guessed = false;
     game->round_start_time = time(NULL);
+    // Reset tracking cho round mới
+    game->guessed_count = 0;
+    
+    // KHÔNG gọi ensure_scores_initialized ở đây vì nó sẽ reset tất cả scores về 0
+    // Chỉ đảm bảo scores được khởi tạo nếu chưa có (trong game_init)
+    // Nếu có người join mới, sẽ được xử lý riêng
 
     printf("[GAME] Room %d start round %d/%d, drawer=%d, word_len=%d\n",
            game->room->room_id, game->current_round, game->total_rounds, game->drawer_id, game->word_length);
@@ -247,32 +263,114 @@ static bool words_equal_case_insensitive(const char* a, const char* b) {
 }
 
 bool game_handle_guess(game_state_t* game, int guesser_user_id, const char* guess_word) {
-    if (!game || !game->room || game->game_ended) return false;
-    if (!guess_word || guess_word[0] == '\0') return false;
-    if (game->drawer_id <= 0 || game->current_word[0] == '\0') return false;
+    if (!game || !game->room || game->game_ended) {
+        printf("[GAME] ERROR: game_handle_guess called with invalid game\n");
+        return false;
+    }
+    if (!guess_word || guess_word[0] == '\0') {
+        printf("[GAME] ERROR: game_handle_guess called with empty guess\n");
+        return false;
+    }
+    if (game->drawer_id <= 0 || game->current_word[0] == '\0') {
+        printf("[GAME] ERROR: Invalid drawer_id=%d or empty word\n", game->drawer_id);
+        return false;
+    }
+
+    // Đảm bảo scores được khởi tạo
+    if (game->score_count == 0) {
+        printf("[GAME] WARNING: score_count is 0, initializing scores...\n");
+        ensure_scores_initialized(game);
+    }
 
     // drawer khong duoc doan
-    if (guesser_user_id == game->drawer_id) return false;
+    if (guesser_user_id == game->drawer_id) {
+        printf("[GAME] Drawer cannot guess\n");
+        return false;
+    }
 
     if (!words_equal_case_insensitive(guess_word, game->current_word)) {
         return false;
     }
 
-    // dung → cong diem
-    int gidx = find_score_index(game, guesser_user_id);
-    if (gidx >= 0) {
-        game->scores[gidx].score += GAME_POINTS_GUESSER;
-        game->scores[gidx].words_guessed += 1;
-        game->scores[gidx].rounds_won += 1;
+    // Kiểm tra xem user đã đoán đúng chưa
+    bool already_guessed = false;
+    for (int i = 0; i < game->guessed_count; i++) {
+        if (game->guessed_user_ids[i] == guesser_user_id) {
+            already_guessed = true;
+            break;
+        }
     }
 
+    // Nếu đã đoán đúng rồi, không cộng điểm nữa
+    if (already_guessed) {
+        return true; // Đã đoán đúng trước đó, không làm gì
+    }
+
+    // Tính điểm theo thứ tự: 1st (10/5), 2nd (7/4), 3rd (5/3), 4th+ (3/2)
+    int guesser_order = game->guessed_count + 1; // Thứ tự người đoán đúng (1, 2, 3, 4+)
+    int guesser_points, drawer_points;
+
+    if (guesser_order == 1) {
+        guesser_points = 10;
+        drawer_points = 5;
+    } else if (guesser_order == 2) {
+        guesser_points = 7;
+        drawer_points = 4;
+    } else if (guesser_order == 3) {
+        guesser_points = 5;
+        drawer_points = 3;
+    } else {
+        // Từ người thứ 4 trở đi
+        guesser_points = 3;
+        drawer_points = 2;
+    }
+
+    // Cộng điểm cho người đoán đúng
+    int gidx = find_score_index(game, guesser_user_id);
+    if (gidx >= 0 && gidx < game->score_count) {
+        game->scores[gidx].score += guesser_points;
+        game->scores[gidx].words_guessed += 1;
+        if (guesser_order == 1) {
+            game->scores[gidx].rounds_won += 1; // Chỉ người đầu tiên mới được tính rounds_won
+        }
+    } else {
+        printf("[GAME] ERROR: Cannot find score index for guesser user_id=%d (gidx=%d, score_count=%d)\n",
+               guesser_user_id, gidx, game->score_count);
+        // Đảm bảo scores được khởi tạo
+        ensure_scores_initialized(game);
+        gidx = find_score_index(game, guesser_user_id);
+        if (gidx >= 0 && gidx < game->score_count) {
+            game->scores[gidx].score += guesser_points;
+            game->scores[gidx].words_guessed += 1;
+            if (guesser_order == 1) {
+                game->scores[gidx].rounds_won += 1;
+            }
+        }
+    }
+
+    // Cộng điểm cho người vẽ (mỗi lần có người đoán đúng)
     int didx = find_score_index(game, game->drawer_id);
-    if (didx >= 0) {
-        game->scores[didx].score += GAME_POINTS_DRAWER;
+    if (didx >= 0 && didx < game->score_count) {
+        game->scores[didx].score += drawer_points;
+    } else {
+        printf("[GAME] ERROR: Cannot find score index for drawer user_id=%d (didx=%d, score_count=%d)\n",
+               game->drawer_id, didx, game->score_count);
+        // Đảm bảo scores được khởi tạo
+        ensure_scores_initialized(game);
+        didx = find_score_index(game, game->drawer_id);
+        if (didx >= 0 && didx < game->score_count) {
+            game->scores[didx].score += drawer_points;
+        }
+    }
+
+    // Thêm vào danh sách đã đoán đúng
+    if (game->guessed_count < MAX_PLAYERS_PER_ROOM) {
+        game->guessed_user_ids[game->guessed_count] = guesser_user_id;
+        game->guessed_count++;
     }
 
     game->word_guessed = true;
-    game_end_round(game, true, guesser_user_id);
+    // KHÔNG gọi game_end_round ngay, để những người khác vẫn có thể đoán cho đến hết giờ
     return true;
 }
 

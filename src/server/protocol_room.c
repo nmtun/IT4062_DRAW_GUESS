@@ -247,8 +247,13 @@ int protocol_broadcast_room_players_update(server_t *server, room_t *room,
     // Thong tin thay doi nguoi choi
     update->action = action; // 0 = JOIN, 1 = LEAVE
     update->changed_user_id = htonl((uint32_t)changed_user_id);
-    strncpy(update->changed_username, changed_username, MAX_USERNAME_LEN - 1);
-    update->changed_username[MAX_USERNAME_LEN - 1] = '\0';
+    if (changed_username) {
+        strncpy(update->changed_username, changed_username, MAX_USERNAME_LEN - 1);
+        update->changed_username[MAX_USERNAME_LEN - 1] = '\0';
+    } else {
+        // Nếu changed_username là NULL, set thành chuỗi rỗng
+        update->changed_username[0] = '\0';
+    }
     update->player_count = htons((uint16_t)room->player_count);
 
     // Lay danh sach nguoi choi hien tai

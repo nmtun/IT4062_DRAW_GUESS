@@ -13,9 +13,9 @@
 extern db_connection_t* db;
 
 // Payload formats (binary protocol):
-// - GAME_START: drawer_id(4) + word_length(1) + time_limit(2) + round_start_ms(8) + word(64) = 79 bytes
-// - CORRECT_GUESS: player_id(4) + word(64) + points(2) = 70 bytes
-// - WRONG_GUESS: player_id(4) + guess(64) = 68 bytes
+// - GAME_START: drawer_id(4) + word_length(1) + time_limit(2) + round_start_ms(8) + current_round(4) + player_count(1) + total_rounds(1) + word(64) + category(64) = 149 bytes
+// - CORRECT_GUESS: player_id(4) + word(64) + guesser_points(2) + drawer_points(2) + username(32) = 104 bytes
+// - WRONG_GUESS: player_id(4) + guess(64) = 68 bytes (không còn dùng nữa)
 // - ROUND_END: word(64) + score_count(2) + pairs(user_id(4), score(4))...
 // - GAME_END: winner_id(4) + score_count(2) + pairs(user_id(4), score(4))...
 
@@ -56,10 +56,24 @@ static int find_client_index_by_user(server_t* server, int user_id) {
 }
 
 static int room_player_db_id(room_t* room, int user_id) {
-    if (!room) return 0;
-    for (int i = 0; i < room->player_count; i++) {
-        if (room->players[i] == user_id) return room->db_player_ids[i];
+    if (!room) {
+        printf("[PROTOCOL] ERROR: room_player_db_id called with NULL room\n");
+        return 0;
     }
+    if (user_id <= 0) {
+        printf("[PROTOCOL] ERROR: room_player_db_id called with invalid user_id=%d\n", user_id);
+        return 0;
+    }
+    if (room->player_count <= 0 || room->player_count > MAX_PLAYERS_PER_ROOM) {
+        printf("[PROTOCOL] ERROR: Invalid player_count=%d\n", room->player_count);
+        return 0;
+    }
+    for (int i = 0; i < room->player_count && i < MAX_PLAYERS_PER_ROOM; i++) {
+        if (room->players[i] == user_id) {
+            return room->db_player_ids[i];
+        }
+    }
+    printf("[PROTOCOL] WARNING: user_id=%d not found in room players\n", user_id);
     return 0;
 }
 
@@ -245,19 +259,35 @@ int protocol_handle_guess_word(server_t* server, int client_index, const message
 }
 
 int protocol_process_guess(server_t* server, int client_index, room_t* room, const char* guess) {
-    if (!server || !room || !room->game || !guess) return -1;
+    if (!server || !room || !room->game || !guess) {
+        printf("[PROTOCOL] ERROR: Invalid parameters in protocol_process_guess\n");
+        return -1;
+    }
     client_t* client = &server->clients[client_index];
-    if (!client->active || client->user_id <= 0) return -1;
+    if (!client->active || client->user_id <= 0) {
+        printf("[PROTOCOL] ERROR: Invalid client in protocol_process_guess\n");
+        return -1;
+    }
 
     // Keep the word before game_end_round clears it
     char current_word[MAX_WORD_LEN];
     memset(current_word, 0, sizeof(current_word));
-    strncpy(current_word, room->game->current_word, MAX_WORD_LEN - 1);
+    if (room->game->current_word[0] != '\0') {
+        strncpy(current_word, room->game->current_word, MAX_WORD_LEN - 1);
+    }
 
+    printf("[PROTOCOL] Processing guess from user_id=%d, word='%s'\n", client->user_id, guess);
     const bool correct = game_handle_guess(room->game, client->user_id, guess);
+    printf("[PROTOCOL] game_handle_guess returned: %d\n", correct ? 1 : 0);
+
+    // Kiểm tra lại room->game sau khi gọi game_handle_guess
+    if (!room->game) {
+        printf("[PROTOCOL] ERROR: room->game became NULL after game_handle_guess\n");
+        return -1;
+    }
 
     // Persist guess (best-effort)
-    if (db && room->game->db_round_id > 0 && room->db_room_id > 0) {
+    if (db && room->game && room->game->db_round_id > 0 && room->db_room_id > 0) {
         int pid = room_player_db_id(room, client->user_id);
         if (pid > 0) {
             db_save_guess(db, room->game->db_round_id, pid, guess, correct ? 1 : 0);
@@ -265,77 +295,79 @@ int protocol_process_guess(server_t* server, int client_index, room_t* room, con
     }
 
     if (!correct) {
-        uint8_t wp[68];
-        memset(wp, 0, sizeof(wp));
-        write_i32_be(wp + 0, (int32_t)client->user_id);
-        write_fixed_string(wp + 4, 64, guess);
-        server_broadcast_to_room(server, room->room_id, MSG_WRONG_GUESS, wp, (uint16_t)sizeof(wp), -1);
-        // Return -1 để báo rằng cần broadcast chat message (vì guess sai)
+        // Không broadcast MSG_WRONG_GUESS nữa, chỉ return -1 để báo cần broadcast chat message
         return -1;
     }
 
-    // correct guess broadcast
-    uint8_t cp[70];
+    // Tính điểm theo thứ tự: 1st (10/5), 2nd (7/4), 3rd (5/3), 4th+ (3/2)
+    // guessed_count đã được tăng trong game_handle_guess, nên nó là số người đã đoán đúng (1, 2, 3, ...)
+    if (!room->game) {
+        printf("[PROTOCOL] ERROR: room->game is NULL before calculating points\n");
+        return -1;
+    }
+    int guesser_order = room->game->guessed_count;
+    printf("[PROTOCOL] guessed_count=%d, calculating points...\n", guesser_order);
+    int guesser_points, drawer_points;
+
+    if (guesser_order <= 0) {
+        // Fallback nếu có lỗi
+        printf("[PROTOCOL] WARNING: guessed_count=%d, using default points\n", guesser_order);
+        guesser_points = 10;
+        drawer_points = 5;
+    } else if (guesser_order == 1) {
+        guesser_points = 10;
+        drawer_points = 5;
+    } else if (guesser_order == 2) {
+        guesser_points = 7;
+        drawer_points = 4;
+    } else if (guesser_order == 3) {
+        guesser_points = 5;
+        drawer_points = 3;
+    } else {
+        // Từ người thứ 4 trở đi
+        guesser_points = 3;
+        drawer_points = 2;
+    }
+
+    // Kiểm tra lại room->game trước khi broadcast
+    if (!room->game) {
+        printf("[PROTOCOL] ERROR: room->game is NULL before broadcast\n");
+        return -1;
+    }
+
+    // correct guess broadcast: player_id(4) + word(64) + guesser_points(2) + drawer_points(2) + username(32) = 104 bytes
+    uint8_t cp[104];
     memset(cp, 0, sizeof(cp));
     write_i32_be(cp + 0, (int32_t)client->user_id);
     write_fixed_string(cp + 4, 64, current_word);
-    write_u16_be(cp + 68, (uint16_t)GAME_POINTS_GUESSER);
+    write_u16_be(cp + 68, (uint16_t)guesser_points);
+    write_u16_be(cp + 70, (uint16_t)drawer_points);
+    write_fixed_string(cp + 72, 32, client->username);
+    printf("[PROTOCOL] Broadcasting CORRECT_GUESS: user_id=%d, username=%s, guesser_points=%d, drawer_points=%d\n",
+           client->user_id, client->username, guesser_points, drawer_points);
     server_broadcast_to_room(server, room->room_id, MSG_CORRECT_GUESS, cp, (uint16_t)sizeof(cp), -1);
 
     // Persist score details (best-effort)
-    if (db && room->game->db_round_id > 0 && room->db_room_id > 0) {
+    if (db && room->game && room->game->db_round_id > 0 && room->db_room_id > 0) {
         int guesser_pid = room_player_db_id(room, client->user_id);
-        int drawer_pid = room_player_db_id(room, room->game->drawer_id);
-        if (guesser_pid > 0) db_save_score_detail(db, room->game->db_round_id, guesser_pid, GAME_POINTS_GUESSER);
-        if (drawer_pid > 0) db_save_score_detail(db, room->game->db_round_id, drawer_pid, GAME_POINTS_DRAWER);
-    }
-
-    // round end
-    broadcast_round_end(server, room, current_word);
-
-    // next round or game end?
-    if (room->game->game_ended) {
-        // Update DB final scores + user stats (best-effort)
-        if (db && room->db_room_id > 0) {
-            // compute winner
-            int winner_id = -1;
-            int best = -2147483647;
-            for (int i = 0; i < room->game->score_count; i++) {
-                if (room->game->scores[i].score > best) {
-                    best = room->game->scores[i].score;
-                    winner_id = room->game->scores[i].user_id;
-                }
-            }
-            for (int i = 0; i < room->game->score_count; i++) {
-                int uid = room->game->scores[i].user_id;
-                int sc = room->game->scores[i].score;
-                int pid = room_player_db_id(room, uid);
-                if (pid > 0) db_update_room_player_score(db, pid, sc);
-                db_update_user_stats(db, uid, sc, (uid == winner_id) ? 1 : 0);
-            }
-            // mark room finished
-            char rid_buf[32];
-            snprintf(rid_buf, sizeof(rid_buf), "%d", room->db_room_id);
-            MYSQL_RES* r = db_execute_query(db, "UPDATE rooms SET status='finished' WHERE id = ?", rid_buf);
-            if (r) mysql_free_result(r);
+        int drawer_pid = 0;
+        if (room->game && room->game->drawer_id > 0) {
+            drawer_pid = room_player_db_id(room, room->game->drawer_id);
         }
-
-        broadcast_game_end(server, room);
-        room_end_game(room);
-        return 0;
-    }
-
-    // start next round immediately
-    if (game_start_round(room->game)) {
-        // create db round if possible
-        if (db && room->db_room_id > 0) {
-            int drawer_pid = room_player_db_id(room, room->game->drawer_id);
-            if (drawer_pid > 0) {
-                room->game->db_round_id = db_create_game_round(db, room->db_room_id, room->game->current_round, room->game->drawer_index, drawer_pid, room->game->current_word);
-            }
+        if (guesser_pid > 0) {
+            db_save_score_detail(db, room->game->db_round_id, guesser_pid, guesser_points);
         }
-        broadcast_game_start(server, room);
+        if (drawer_pid > 0) {
+            db_save_score_detail(db, room->game->db_round_id, drawer_pid, drawer_points);
+        }
     }
+
+    // KHÔNG broadcast ROOM_PLAYERS_UPDATE ở đây vì nó không chứa scores
+    // Frontend sẽ cập nhật điểm từ CORRECT_GUESS message
+    // ROOM_PLAYERS_UPDATE chỉ dùng để cập nhật danh sách người chơi, không phải scores
+
+    // KHÔNG kết thúc round ngay, để những người khác vẫn có thể đoán cho đến hết giờ
+    // Round sẽ kết thúc khi timeout (trong server tick)
     return 0;
 }
 

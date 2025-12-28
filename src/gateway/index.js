@@ -694,16 +694,28 @@ class Gateway {
     }
 
     parseCorrectGuess(payload) {
-        // player_id(4) + word(64) + points(2) = 70 bytes
-        if (payload.length < 70) {
+        // player_id(4) + word(64) + guesser_points(2) + drawer_points(2) + username(32) = 104 bytes
+        if (payload.length < 104) {
+            // Fallback cho payload cũ (72 bytes) nếu server chưa update
+            if (payload.length >= 72) {
+                const player_id_raw = payload.readUInt32BE(0);
+                const player_id = player_id_raw > 0x7FFFFFFF ? player_id_raw - 0x100000000 : player_id_raw;
+                const word = payload.slice(4, 68).toString('utf8').replace(/\0/g, '');
+                const guesser_points = payload.readUInt16BE(68);
+                const drawer_points = payload.readUInt16BE(70);
+                return { player_id, word, points: guesser_points, guesser_points, drawer_points, username: null };
+            }
             Logger.warn('CORRECT_GUESS payload too short');
             return { error: 'Invalid payload' };
         }
         const player_id_raw = payload.readUInt32BE(0);
         const player_id = player_id_raw > 0x7FFFFFFF ? player_id_raw - 0x100000000 : player_id_raw;
         const word = payload.slice(4, 68).toString('utf8').replace(/\0/g, '');
-        const points = payload.readUInt16BE(68);
-        return { player_id, word, points };
+        const guesser_points = payload.readUInt16BE(68);
+        const drawer_points = payload.readUInt16BE(70);
+        const username = payload.slice(72, 104).toString('utf8').replace(/\0/g, '').trim();
+        Logger.info(`[Gateway] Parsed CORRECT_GUESS: player_id=${player_id}, username="${username}", points=${guesser_points}`);
+        return { player_id, word, points: guesser_points, guesser_points, drawer_points, username: username || null };
     }
 
     parseWrongGuess(payload) {
