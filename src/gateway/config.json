@@ -19,7 +19,7 @@
     },
     "limits": {
       "maxConnections": 100,
-      "messageTimeout": 30000,
+      "messageTimeout": 300000,
       "maxMessageSize": 4096
     }
   }

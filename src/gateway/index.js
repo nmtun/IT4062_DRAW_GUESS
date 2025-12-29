@@ -47,9 +47,31 @@ class Gateway {
         let isConnected = false;
         let connectingPromise = null; // Promise để đợi quá trình kết nối hoàn tất
         const messageBuffer = new MessageBuffer();
+        let pingInterval = null; // Interval cho WebSocket ping
         
         // Tạo TcpConnectionManager riêng cho mỗi WebSocket client
         const tcpConnectionManager = new TcpConnectionManager(this.tcpHost, this.tcpPort);
+        
+        // Thiết lập WebSocket ping để giữ kết nối sống (mỗi 30 giây)
+        // Điều này rất quan trọng để tránh timeout trên VPS/proxy/load balancer
+        const startPingInterval = () => {
+            if (pingInterval) {
+                clearInterval(pingInterval);
+            }
+            pingInterval = setInterval(() => {
+                if (ws.readyState === WebSocket.OPEN) {
+                    try {
+                        ws.ping();
+                        Logger.debug('Sent WebSocket ping to keep connection alive');
+                    } catch (error) {
+                        Logger.warn('Failed to send WebSocket ping:', error);
+                    }
+                }
+            }, 30000); // Ping mỗi 30 giây
+        };
+        
+        // Bắt đầu ping ngay khi kết nối
+        startPingInterval();
 
         // Kết nối đến TCP server với retry logic
         const connectToTcpServer = async () => {
@@ -69,6 +91,11 @@ class Gateway {
                     tcpClient = await tcpConnectionManager.connect();
                     isConnected = true;
                     connectingPromise = null; // Reset promise sau khi kết nối thành công
+                    
+                    // Thiết lập TCP keepalive cho TCP connection
+                    // Bắt đầu keepalive sau 60 giây idle, giúp giữ kết nối sống qua firewall/NAT
+                    tcpClient.setKeepAlive(true, 60000);
+                    Logger.debug('TCP keepalive enabled for connection');
 
                     tcpClient.on('data', (data) => {
                         try {
@@ -168,6 +195,11 @@ class Gateway {
         ws.on('close', () => {
             Logger.info('WebSocket client disconnected');
             this.performanceMonitor.decrementConnectionsActive();
+            // Dọn dẹp ping interval
+            if (pingInterval) {
+                clearInterval(pingInterval);
+                pingInterval = null;
+            }
             if (tcpClient) {
                 tcpClient.destroy();
             }
@@ -177,9 +209,19 @@ class Gateway {
         ws.on('error', (error) => {
             Logger.error('WebSocket error:', error);
             this.performanceMonitor.incrementErrors();
+            // Dọn dẹp ping interval
+            if (pingInterval) {
+                clearInterval(pingInterval);
+                pingInterval = null;
+            }
             if (tcpClient) {
                 tcpClient.destroy();
             }
+        });
+        
+        // Xử lý WebSocket pong để xác nhận connection còn sống
+        ws.on('pong', () => {
+            Logger.debug('Received WebSocket pong');
         });
 
         this.clients.set(ws, { tcpClient, messageBuffer });

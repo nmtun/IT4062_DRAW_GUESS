@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <arpa/inet.h>
+#include <netinet/tcp.h>
 #include <time.h>
 
 // External database connection (from main.c)
@@ -73,6 +74,33 @@ int server_listen(server_t *server) {
 
 // Them client vao danh sach
 int server_add_client(server_t *server, int client_fd) {
+    // Thiet lap SO_KEEPALIVE de giu ket noi song khi khong co traffic
+    // Day la giai phap quan trong de tranh timeout tren VPS
+    int keepalive = 1;
+    if (setsockopt(client_fd, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(keepalive)) < 0) {
+        perror("setsockopt(SO_KEEPALIVE) failed");
+        // Khong return -1 vi ket noi van co the hoat dong, chi canh bao
+    }
+    
+    // Thiet lap TCP keepalive parameters (optional, nhung tot cho VPS)
+    // idle time trước khi bắt đầu gửi keepalive probes: 60 giây
+    int keepidle = 60;
+    // Interval giữa các keepalive probes: 10 giây
+    int keepintvl = 10;
+    // Số probes trước khi đóng connection: 3
+    int keepcnt = 3;
+    
+    // Chỉ set nếu hệ thống hỗ trợ (Linux)
+    #ifdef TCP_KEEPIDLE
+    setsockopt(client_fd, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle, sizeof(keepidle));
+    #endif
+    #ifdef TCP_KEEPINTVL
+    setsockopt(client_fd, IPPROTO_TCP, TCP_KEEPINTVL, &keepintvl, sizeof(keepintvl));
+    #endif
+    #ifdef TCP_KEEPCNT
+    setsockopt(client_fd, IPPROTO_TCP, TCP_KEEPCNT, &keepcnt, sizeof(keepcnt));
+    #endif
+    
     for (int i = 0; i < MAX_CLIENTS; i++) {
         // Neu client thu i chua duoc su dung thi them vao danh sach
         if (!server->clients[i].active) {
@@ -90,7 +118,7 @@ int server_add_client(server_t *server, int client_fd) {
                 server->max_fd = client_fd;
             }
             
-            printf("Client moi ket noi (fd: %d, index: %d)\n", client_fd, i);
+            printf("Client moi ket noi (fd: %d, index: %d) - SO_KEEPALIVE enabled\n", client_fd, i);
             return i;
         }
     }
