@@ -106,6 +106,13 @@ bool room_is_full(room_t *room);
 bool room_transfer_ownership(room_t *room, int new_owner_id);
 
 /**
+ * Đảm bảo owner là người chơi active, nếu không thì chuyển cho người chơi active đầu tiên
+ * @param room Con trỏ đến room_t
+ * @return true nếu owner hợp lệ hoặc đã chuyển thành công, false nếu không có người chơi active nào
+ */
+bool room_ensure_active_owner(room_t *room);
+
+/**
  * Bắt đầu game trong phòng
  * @param room Con trỏ đến room_t
  * @return true nếu thành công, false nếu không đủ điều kiện

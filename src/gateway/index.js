@@ -665,8 +665,9 @@ class Gateway {
             offset += 32;
 
             const is_owner = payload.readUInt8(offset++);
+            const is_active = payload.readUInt8(offset++); // 1 = active, 0 = đang chờ, 255 = đã rời phòng
 
-            players.push({ user_id, username, avatar, is_owner });
+            players.push({ user_id, username, avatar, is_owner, is_active });
         }
 
         Logger.info('room infor and data players:', { room_id, room_name, max_players, state, owner_id, action, changed_user_id, changed_username, player_count, players });

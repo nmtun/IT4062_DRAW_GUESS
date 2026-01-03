@@ -205,6 +205,52 @@ bool room_remove_player(room_t *room, int user_id)
         return false;
     }
 
+    // Neu dang choi game, khong xoa nguoi choi khoi mảng mà chỉ đánh dấu inactive
+    // để vẫn hiển thị trong bảng điểm
+    if (room->state == ROOM_PLAYING)
+    {
+        // Đánh dấu inactive (-1 = đã rời phòng)
+        room->active_players[player_index] = -1;
+        
+        printf("User %d da roi phong '%s' (ID: %d) trong luc dang choi. Danh dau inactive.\n",
+               user_id, room->room_name, room->room_id);
+        
+        // Nếu owner rời phòng, chuyển owner cho người chơi active đầu tiên
+        if (user_id == room->owner_id) {
+            int new_owner_id = -1;
+            for (int i = 0; i < room->player_count; i++) {
+                if (room->active_players[i] == 1) {
+                    new_owner_id = room->players[i];
+                    break;
+                }
+            }
+            if (new_owner_id > 0) {
+                room->owner_id = new_owner_id;
+                printf("Quyen chu phong '%s' duoc chuyen cho user %d (owner cu roi phong trong luc choi)\n",
+                       room->room_name, room->owner_id);
+            } else {
+                printf("Khong co nguoi choi active nao de chuyen owner. Phong se bi xoa khi game ket thuc.\n");
+            }
+        }
+        
+        // Đếm số người chơi active (không tính người đã rời)
+        int active_count = 0;
+        for (int i = 0; i < room->player_count; i++) {
+            if (room->active_players[i] == 1) {
+                active_count++;
+            }
+        }
+        
+        // Neu con < 2 nguoi choi active thi end game ngay de tranh treo state
+        if (active_count < 2) {
+            room_end_game(room);
+            printf("Game ket thuc do khong du nguoi choi active\n");
+        }
+        
+        return true;
+    }
+
+    // Neu khong phai dang choi game, xoa nguoi choi khoi mảng như bình thường
     // Xoa player bang cach shift array nguoi choi
     for (int i = player_index; i < room->player_count - 1; i++)
     {
@@ -220,23 +266,28 @@ bool room_remove_player(room_t *room, int user_id)
     printf("User %d da roi phong '%s' (ID: %d). So nguoi con lai: %d\n",
            user_id, room->room_name, room->room_id, room->player_count);
 
-    // Neu la owner thi chuyen owner cho nguoi khac
+    // Neu la owner thi chuyen owner cho nguoi chơi active đầu tiên
     if (user_id == room->owner_id && room->player_count > 0)
     {
-        room->owner_id = room->players[0];
-        printf("Quyen chu phong '%s' duoc chuyen cho user %d\n",
-               room->room_name, room->owner_id);
-    }
-
-    // Neu dang choi game, can xu ly logic game
-    if (room->state == ROOM_PLAYING)
-    {
-        // Neu con < 2 nguoi choi thi end game ngay de tranh treo state
-        if (room->player_count < 2) {
-            room_end_game(room);
-            printf("Game ket thuc do khong du nguoi choi\n");
+        int new_owner_id = -1;
+        // Tìm người chơi active đầu tiên (không phải inactive)
+        for (int i = 0; i < room->player_count; i++) {
+            // Chỉ chọn người chơi active (active_players[i] == 1)
+            // Không chọn người đã rời (active_players[i] == -1) hoặc đang chờ (active_players[i] == 0)
+            if (room->active_players[i] == 1) {
+                new_owner_id = room->players[i];
+                break;
+            }
+        }
+        
+        if (new_owner_id > 0) {
+            room->owner_id = new_owner_id;
+            printf("Quyen chu phong '%s' duoc chuyen cho user %d\n",
+                   room->room_name, room->owner_id);
         } else {
-            printf("Player roi phong trong luc dang choi (server se xu ly round tiep theo neu can)\n");
+            // Không có người chơi active nào, owner vẫn là user_id cũ (sẽ xử lý khi xóa phòng)
+            printf("Khong co nguoi choi active nao de chuyen owner trong phong '%s'\n",
+                   room->room_name);
         }
     }
 
@@ -306,6 +357,46 @@ bool room_transfer_ownership(room_t *room, int new_owner_id)
            room->room_name, old_owner_id, new_owner_id);
 
     return true;
+}
+
+// Đảm bảo owner là người chơi active, nếu không thì chuyển cho người chơi active đầu tiên
+// Trả về true nếu owner hợp lệ hoặc đã chuyển thành công, false nếu không có người chơi active nào
+bool room_ensure_active_owner(room_t *room)
+{
+    if (!room) return false;
+    
+    // Kiểm tra owner hiện tại có active không
+    bool owner_is_active = false;
+    for (int i = 0; i < room->player_count; i++) {
+        if (room->players[i] == room->owner_id && room->active_players[i] == 1) {
+            owner_is_active = true;
+            break;
+        }
+    }
+    
+    if (owner_is_active) {
+        return true; // Owner đã active, không cần làm gì
+    }
+    
+    // Tìm người chơi active đầu tiên để chuyển owner
+    int new_owner_id = -1;
+    for (int i = 0; i < room->player_count; i++) {
+        if (room->active_players[i] == 1) {
+            new_owner_id = room->players[i];
+            break;
+        }
+    }
+    
+    if (new_owner_id > 0) {
+        int old_owner_id = room->owner_id;
+        room->owner_id = new_owner_id;
+        printf("Owner cua phong '%s' (ID: %d) duoc chuyen tu user %d sang user %d (owner cu khong active)\n",
+               room->room_name, room->room_id, old_owner_id, new_owner_id);
+        return true;
+    }
+    
+    // Không có người chơi active nào
+    return false;
 }
 
 // Bat dau game

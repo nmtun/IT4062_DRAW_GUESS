@@ -155,6 +155,16 @@
   font-size: 4rem;
 }
 
+.winner-avatar-container.avatar-grayscale {
+  filter: grayscale(100%);
+  opacity: 0.6;
+}
+
+.ranking-avatar.avatar-grayscale {
+  filter: grayscale(100%);
+  opacity: 0.6;
+}
+
 .winner-name {
   font-size: 1.5rem;
   font-weight: bold;

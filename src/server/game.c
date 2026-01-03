@@ -165,16 +165,9 @@ static int pick_next_drawer_index(game_state_t* game) {
 
     // Chuyen sang nguoi tiep theo theo thu tu vao phong
     // Thu tu ve se la thu tu vao phong cho don gian
+    // KHÔNG kiểm tra active ở đây, để đảm bảo số lượng round
     int next_idx = (game->drawer_index + 1) % n;
-    
-    // Tim nguoi active tiep theo neu nguoi tiep theo khong active
-    for (int step = 0; step < n; step++) {
-        int idx = (next_idx + step) % n;
-        if (game->room->active_players[idx]) return idx;
-    }
-
-    // neu khong co ai active, fallback 0
-    return 0;
+    return next_idx;
 }
 
 static void assign_new_word(game_state_t* game) {
@@ -216,11 +209,31 @@ bool game_start_round(game_state_t* game) {
     if (game->drawer_index < 0 || game->drawer_index >= game->room->player_count) {
         game->drawer_index = 0;
     }
+    
+    // Chọn drawer tiếp theo (không kiểm tra active ở đây)
+    game->drawer_index = pick_next_drawer_index(game);
+    
+    // Kiểm tra drawer_index hợp lệ
+    if (game->drawer_index < 0 || game->drawer_index >= game->room->player_count) {
+        printf("[GAME] Drawer index khong hop le. End round ngay.\n");
+        game_end_round(game, false, -1);
+        return false;
+    }
+    
     game->drawer_id = game->room->players[game->drawer_index];
     if (game->drawer_id <= 0) {
-        // tim drawer hop le
-        game->drawer_index = pick_next_drawer_index(game);
-        game->drawer_id = (game->drawer_index >= 0) ? game->room->players[game->drawer_index] : -1;
+        printf("[GAME] Drawer ID khong hop le. End round ngay.\n");
+        game_end_round(game, false, -1);
+        return false;
+    }
+    
+    // Kiểm tra drawer có active không - nếu không active thì end round ngay
+    // Điều này đảm bảo số lượng round vẫn đúng (round đã được đếm), nhưng round kết thúc ngay
+    if (game->room->active_players[game->drawer_index] != 1) {
+        printf("[GAME] Drawer (user_id=%d, index=%d) khong active. End round ngay de bao dam so luong round.\n", 
+               game->drawer_id, game->drawer_index);
+        game_end_round(game, false, -1);
+        return false;
     }
 
     assign_new_word(game);

@@ -29,12 +29,14 @@ export default function PlayerList({ players, currentUserId, startButton }) {
         <h3>Draw & Guess</h3>
       </div>
       <div className="players-container">
-        {displayPlayers.map((player, index) => (
+        {displayPlayers.map((player, index) => {
+          const hasLeft = player.hasLeft === true || player.isActive === 255;
+          return (
           <div
             key={player.id || `slot-${index}`}
-            className={`player-item ${player.id === currentUserId ? 'current-player' : ''} ${player.isDrawing ? 'drawing' : ''}`}
+              className={`player-item ${player.id === currentUserId ? 'current-player' : ''} ${player.isDrawing ? 'drawing' : ''} ${hasLeft ? 'player-left' : ''}`}
           >
-            <div className="player-avatar">
+              <div className={`player-avatar ${hasLeft ? 'avatar-grayscale' : ''}`}>
               {player.avatar && (player.avatar.startsWith('/assets/') || player.avatar.startsWith('/src/assets/')) ? (
                 <img src={player.avatar} alt="avatar" className="avatar-image" />
               ) : (
@@ -49,8 +51,10 @@ export default function PlayerList({ players, currentUserId, startButton }) {
               <div className="player-score">{player.score || 0} điểm</div>
             </div>
             {player.isDrawing && <span className="drawing-icon">✏️</span>}
+              {hasLeft && <span className="left-badge" title="Đã rời phòng">🚪</span>}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

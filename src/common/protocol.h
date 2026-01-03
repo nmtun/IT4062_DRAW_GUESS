@@ -196,6 +196,7 @@ typedef struct {
     char username[MAX_USERNAME_LEN];
     char avatar[32];  // Avatar filename (e.g., "avt1.jpg")
     uint8_t is_owner;  // 1 nếu là owner, 0 nếu không
+    uint8_t is_active; // 1 = active, 0 = đang chờ, 255 (0xFF) = đã rời phòng
 } player_info_protocol_t;
 #pragma pack()
 

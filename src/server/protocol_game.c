@@ -400,14 +400,34 @@ int protocol_process_guess(server_t* server, int client_index, room_t* room, con
     // Frontend sẽ cập nhật điểm từ CORRECT_GUESS message
     // ROOM_PLAYERS_UPDATE chỉ dùng để cập nhật danh sách người chơi, không phải scores
 
-    // Kiểm tra xem tất cả người chơi (trừ người vẽ) đã đoán đúng chưa
+    // Kiểm tra xem tất cả người chơi active (trừ người vẽ) đã đoán đúng chưa
     // Nếu đã đoán đúng hết, kết thúc round sớm và chuyển sang lượt tiếp theo
     if (room->game && !room->game->game_ended) {
-        int total_guessers = room->player_count - 1; // Tổng số người cần đoán (trừ người vẽ)
+        // Đếm số người chơi active (trừ drawer)
+        int total_active_guessers = 0;
+        int drawer_index = -1;
+        
+        // Tìm drawer index
+        for (int i = 0; i < room->player_count; i++) {
+            if (room->players[i] == room->game->drawer_id) {
+                drawer_index = i;
+                break;
+            }
+        }
+        
+        // Đếm số người chơi active (không tính drawer)
+        for (int i = 0; i < room->player_count; i++) {
+            // Chỉ đếm người chơi active (active_players[i] == 1) và không phải drawer
+            if (room->active_players[i] == 1 && i != drawer_index) {
+                total_active_guessers++;
+            }
+        }
+        
         int guessed_count = room->game->guessed_count; // Số người đã đoán đúng
         
-        if (total_guessers > 0 && guessed_count >= total_guessers) {
-            printf("[PROTOCOL] Tất cả người chơi (trừ người vẽ) đã đoán đúng. Kết thúc round sớm.\n");
+        if (total_active_guessers > 0 && guessed_count >= total_active_guessers) {
+            printf("[PROTOCOL] Tất cả người chơi active (trừ người vẽ) đã đoán đúng (%d/%d). Kết thúc round sớm.\n",
+                   guessed_count, total_active_guessers);
             // Lưu word trước khi game_end_round xóa nó
             char word_before_clear[64];
             memset(word_before_clear, 0, sizeof(word_before_clear));
@@ -427,10 +447,16 @@ int protocol_process_guess(server_t* server, int client_index, room_t* room, con
 }
 
 // Called by server tick when timeout happens
+// Note: Nếu được gọi sau khi drawer rời phòng, game_end_round đã được gọi trước đó
+// nên không cần gọi lại game_end_round ở đây
 int protocol_handle_round_timeout(server_t* server, room_t* room, const char* word_before_clear) {
     if (!server || !room || !room->game) return -1;
 
-    broadcast_round_end(server, room, word_before_clear);
+    // Chỉ broadcast round_end nếu round chưa được end (word vẫn còn)
+    // Nếu round đã được end (word đã bị clear), không cần broadcast lại
+    if (word_before_clear && word_before_clear[0] != '\0') {
+        broadcast_round_end(server, room, word_before_clear);
+    }
 
     if (room->game->game_ended) {
         broadcast_game_end(server, room);
@@ -438,9 +464,45 @@ int protocol_handle_round_timeout(server_t* server, room_t* room, const char* wo
         return 0;
     }
 
-    if (game_start_round(room->game)) {
-        broadcast_game_start(server, room);
+    // Thử bắt đầu round mới
+    // Nếu drawer không active, game_start_round sẽ end round ngay và trả về false
+    // Trong trường hợp đó, cần tiếp tục thử bắt đầu round tiếp theo
+    int max_attempts = room->player_count + 1; // Tối đa thử qua tất cả người chơi
+    int attempts = 0;
+    
+    while (attempts < max_attempts && !room->game->game_ended) {
+        if (game_start_round(room->game)) {
+            // Round bắt đầu thành công với drawer active
+            broadcast_game_start(server, room);
+            return 0;
+        }
+        
+        // Round không bắt đầu được (có thể do drawer không active hoặc game đã kết thúc)
+        // Kiểm tra game đã kết thúc chưa (game_start_round có thể gọi game_end nếu là round cuối)
+        if (room->game->game_ended) {
+            // Game đã kết thúc, broadcast và return
+            broadcast_game_end(server, room);
+            room_end_game(room);
+            return 0;
+        }
+        
+        // Nếu vẫn còn round, thử chuyển drawer và bắt đầu lại
+        // (game_start_round đã gọi game_end_round và chuyển drawer)
+        attempts++;
     }
+    
+    // Nếu không thể bắt đầu round nào (tất cả drawer đều không active hoặc game đã kết thúc)
+    if (room->game && !room->game->game_ended) {
+        printf("[PROTOCOL] Khong the bat dau round: khong co drawer active. Ket thuc game.\n");
+        game_end(room->game);
+        broadcast_game_end(server, room);
+        room_end_game(room);
+    } else if (room->game && room->game->game_ended) {
+        // Game đã kết thúc trong vòng lặp, broadcast
+        broadcast_game_end(server, room);
+        room_end_game(room);
+    }
+    
     return 0;
 }
 

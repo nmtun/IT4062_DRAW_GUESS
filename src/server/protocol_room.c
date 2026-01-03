@@ -1,5 +1,6 @@
 #include "../include/protocol.h"
 #include "../include/room.h"
+#include "../include/game.h"
 #include "../common/protocol.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -264,8 +265,21 @@ int protocol_broadcast_room_players_update(server_t *server, room_t *room,
         int player_user_id = room->players[i];
         players[i].user_id = htonl((uint32_t)player_user_id);
         players[i].is_owner = (player_user_id == room->owner_id) ? 1 : 0;
+        
+        // Xác định trạng thái active
+        if (room->active_players[i] == -1) {
+            // Người chơi đã rời phòng
+            players[i].is_active = 255; // 0xFF = đã rời phòng
+        } else if (room->active_players[i] == 1) {
+            // Người chơi đang active
+            players[i].is_active = 1;
+        } else {
+            // Người chơi đang chờ (join giữa chừng)
+            players[i].is_active = 0;
+        }
 
         // Tim username va avatar tu server->clients
+        // Nếu người chơi đã rời (active_players[i] == -1), có thể không tìm thấy trong server->clients
         strncpy(players[i].username, "Unknown", MAX_USERNAME_LEN - 1);
         strncpy(players[i].avatar, "avt1.jpg", 32 - 1);  // Default avatar
         players[i].avatar[31] = '\0';
@@ -787,6 +801,16 @@ int protocol_handle_leave_room(server_t *server, int client_index, const message
         return -1;
     }
 
+    // Neu dang choi va nguoi roi la drawer -> end round ngay de game khong bi ket
+    int was_playing = (room->state == ROOM_PLAYING && room->game != NULL);
+    int was_drawer = (was_playing && room->game->drawer_id == client->user_id);
+    char word_before[64];
+    word_before[0] = '\0';
+    if (was_playing) {
+        strncpy(word_before, room->game->current_word, sizeof(word_before) - 1);
+        word_before[sizeof(word_before) - 1] = '\0';
+    }
+
     // Xoa nguoi choi khoi phong
     if (!room_remove_player(room, client->user_id))
     {
@@ -804,19 +828,41 @@ int protocol_handle_leave_room(server_t *server, int client_index, const message
     strncpy(leaving_username, client->username, sizeof(leaving_username) - 1);
     leaving_username[sizeof(leaving_username) - 1] = '\0';
 
-    // Neu phong trong sau khi roi, xoa phong
-    if (room->player_count == 0)
+    // Kiểm tra số người chơi active sau khi rời phòng
+    int active_count = 0;
+    for (int i = 0; i < room->player_count; i++) {
+        if (room->active_players[i] == 1) {
+            active_count++;
+        }
+    }
+    
+    // Neu phong trong hoặc không còn người chơi active nào, xoa phong
+    if (room->player_count == 0 || active_count == 0)
     {
         protocol_remove_room_from_server(server, room);
         room_destroy(room);
-        printf("Phong '%s' (ID: %d) da bi xoa vi khong con nguoi choi\n",
-               room_name, room_id);
+        printf("Phong '%s' (ID: %d) da bi xoa vi khong con nguoi choi active (total: %d, active: %d)\n",
+               room_name, room_id, room->player_count, active_count);
 
         // Broadcast danh sach phong cho tat ca clients da dang nhap
         protocol_broadcast_room_list(server);
     }
     else
     {
+        // Đảm bảo owner là người chơi active
+        if (!room_ensure_active_owner(room)) {
+            // Không có người chơi active nào, xóa phòng
+            protocol_remove_room_from_server(server, room);
+            room_destroy(room);
+            printf("Phong '%s' (ID: %d) da bi xoa vi khong co nguoi choi active\n",
+                   room_name, room_id);
+            protocol_broadcast_room_list(server);
+            client->state = CLIENT_STATE_LOGGED_IN;
+            protocol_send_leave_room_response(client->fd, STATUS_SUCCESS,
+                                              "Roi phong thanh cong");
+            return 0;
+        }
+        
         // Broadcast ROOM_PLAYERS_UPDATE voi danh sach day du (da bao gom tat ca thong tin phong)
         protocol_broadcast_room_players_update(server, room, 1, // 1 = LEAVE
                                                leaving_user_id, leaving_username,
@@ -824,6 +870,14 @@ int protocol_handle_leave_room(server_t *server, int client_index, const message
 
         printf("Client %d (user_id=%d, username=%s) da roi phong '%s' (ID: %d)\n",
                client_index, leaving_user_id, leaving_username, room_name, room_id);
+    }
+
+    // Xu ly drawer roi phong trong game (sau khi da broadcast danh sach players)
+    if (was_drawer && room->game && word_before[0] != '\0') {
+        // End round hiện tại trước (để đảm bảo round được đếm đúng)
+        game_end_round(room->game, false, -1);
+        // Sau đó mới bắt đầu round mới
+        protocol_handle_round_timeout(server, room, word_before);
     }
 
     // Cap nhat trang thai client

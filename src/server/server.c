@@ -348,8 +348,16 @@ void server_handle_disconnect(server_t *server, int client_index) {
             strncpy(leaving_username, client->username, sizeof(leaving_username) - 1);
             leaving_username[sizeof(leaving_username) - 1] = '\0';
             
-            // Neu phong trong, xoa phong
-            if (room->player_count == 0) {
+            // Kiểm tra số người chơi active sau khi rời phòng
+            int active_count = 0;
+            for (int i = 0; i < room->player_count; i++) {
+                if (room->active_players[i] == 1) {
+                    active_count++;
+                }
+            }
+            
+            // Neu phong trong hoặc không còn người chơi active nào, xoa phong
+            if (room->player_count == 0 || active_count == 0) {
                 // Tim va xoa phong khoi server
                 for (int i = 0; i < MAX_ROOMS; i++) {
                     if (server->rooms[i] == room) {
@@ -359,20 +367,39 @@ void server_handle_disconnect(server_t *server, int client_index) {
                     }
                 }
                 room_destroy(room);
-                printf("Phong '%s' (ID: %d) da bi xoa vi khong con nguoi choi\n",
-                       room_name, room_id);
+                printf("Phong '%s' (ID: %d) da bi xoa vi khong con nguoi choi active (total: %d, active: %d)\n",
+                       room_name, room_id, room->player_count, active_count);
                 
                 // Broadcast danh sach phong cho tat ca clients da dang nhap
                 protocol_broadcast_room_list(server);
             } else {
-                // Broadcast ROOM_PLAYERS_UPDATE voi danh sach day du (da bao gom tat ca thong tin phong)
-                protocol_broadcast_room_players_update(server, room, 1, // 1 = LEAVE
-                                                      leaving_user_id, leaving_username, 
-                                                      -1);
+                // Đảm bảo owner là người chơi active
+                if (!room_ensure_active_owner(room)) {
+                    // Không có người chơi active nào, xóa phòng
+                    for (int i = 0; i < MAX_ROOMS; i++) {
+                        if (server->rooms[i] == room) {
+                            server->rooms[i] = NULL;
+                            server->room_count--;
+                            break;
+                        }
+                    }
+                    room_destroy(room);
+                    printf("Phong '%s' (ID: %d) da bi xoa vi khong co nguoi choi active\n",
+                           room_name, room_id);
+                    protocol_broadcast_room_list(server);
+                } else {
+                    // Broadcast ROOM_PLAYERS_UPDATE voi danh sach day du (da bao gom tat ca thong tin phong)
+                    protocol_broadcast_room_players_update(server, room, 1, // 1 = LEAVE
+                                                          leaving_user_id, leaving_username, 
+                                                          -1);
+                }
             }
 
             // Xu ly drawer roi phong trong game (sau khi da broadcast danh sach players)
             if (was_drawer && room->game && word_before[0] != '\0') {
+                // End round hiện tại trước (để đảm bảo round được đếm đúng)
+                game_end_round(room->game, false, -1);
+                // Sau đó mới bắt đầu round mới
                 protocol_handle_round_timeout(server, room, word_before);
             }
         }

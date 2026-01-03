@@ -51,6 +51,7 @@ export default function GameRoom({
   const [playerCount, setPlayerCount] = useState(0);
   const [totalRounds, setTotalRounds] = useState(0);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [leaderboardPlayers, setLeaderboardPlayers] = useState([]); // Lưu leaderboard data riêng
   const timerRef = useRef(null);
 
   const isOwner = useMemo(() => {
@@ -91,6 +92,12 @@ export default function GameRoom({
         return;
       }
 
+      // Nếu game đã kết thúc, không cập nhật players state để tránh thay đổi leaderboard
+      if (gameState === 'finished') {
+        console.log('Game đã kết thúc, bỏ qua room_players_update để giữ nguyên leaderboard');
+        return;
+      }
+
       // Cập nhật maxPlayers nếu có
       if (typeof data.max_players === 'number') {
         setMaxPlayers(data.max_players);
@@ -103,30 +110,36 @@ export default function GameRoom({
 
       const meId = myUserIdRef.current;
       const myAvatar = userAvatarRef.current;
-      const mapped = (data.players || []).map(p => {
-        const playerId = typeof p.user_id === 'number' ? p.user_id : parseInt(p.user_id, 10);
-        // Sử dụng avatar từ server, nếu là current user thì ưu tiên myAvatar từ localStorage
-        let playerAvatar = p.avatar || 'avt1.jpg';
-        if (playerId === meId && myAvatar) {
-          playerAvatar = myAvatar;
-        }
-        
-        // Tìm player hiện tại để giữ lại score (không reset về 0)
-        const existingPlayer = players.find(ep => ep.id === playerId);
-        const currentScore = existingPlayer ? (existingPlayer.score || 0) : 0;
-        
-        return {
-          id: playerId,
-          username: p.username,
-          avatar: playerAvatar,
-          score: currentScore,  // Giữ lại score hiện tại, không reset về 0
-          isDrawing: currentDrawerId != null && playerId === currentDrawerId,
-          isOwner: p.is_owner === 1
-        };
-      });
+      
+      // Sử dụng functional update để đảm bảo lấy được players state mới nhất
+      setPlayers(prevPlayers => {
+        const mapped = (data.players || []).map(p => {
+          const playerId = typeof p.user_id === 'number' ? p.user_id : parseInt(p.user_id, 10);
+          // Sử dụng avatar từ server, nếu là current user thì ưu tiên myAvatar từ localStorage
+          let playerAvatar = p.avatar || 'avt1.jpg';
+          if (playerId === meId && myAvatar) {
+            playerAvatar = myAvatar;
+          }
+          
+          // Tìm player hiện tại từ prevPlayers để giữ lại score (không reset về 0)
+          const existingPlayer = prevPlayers.find(ep => ep.id === playerId);
+          const currentScore = existingPlayer ? (existingPlayer.score || 0) : 0;
+          
+          return {
+            id: playerId,
+            username: p.username,
+            avatar: playerAvatar,
+            score: currentScore,  // Giữ lại score hiện tại, không reset về 0
+            isDrawing: currentDrawerId != null && playerId === currentDrawerId,
+            isOwner: p.is_owner === 1,
+            isActive: p.is_active !== undefined ? p.is_active : 1, // 1 = active, 0 = đang chờ, 255 = đã rời phòng
+            hasLeft: p.is_active === 255 // Đã rời phòng
+          };
+        });
 
-      console.log('Updated players:', mapped);
-      setPlayers(mapped);
+        console.log('Updated players:', mapped);
+        return mapped;
+      });
     };
 
     const handleRoomUpdate = (data) => {
@@ -254,9 +267,18 @@ export default function GameRoom({
     };
 
     const applyScores = (scores = []) => {
+      if (!Array.isArray(scores) || scores.length === 0) {
+        // Không có scores mới, giữ nguyên
+        return;
+      }
       setPlayers((prev) => {
         const map = new Map(scores.map(s => [s.user_id, s.score]));
-        const updated = (prev || []).map(p => ({ ...p, score: map.get(p.id) ?? p.score ?? 0 }));
+        // Chỉ cập nhật score nếu có trong map, nếu không thì giữ nguyên score hiện tại
+        const updated = (prev || []).map(p => {
+          const newScore = map.get(p.id);
+          // Nếu có score mới trong map, cập nhật; nếu không, giữ nguyên score cũ
+          return { ...p, score: newScore !== undefined ? newScore : (p.score ?? 0) };
+        });
         // Sort leaderboard giảm dần theo điểm
         updated.sort((a, b) => (b.score || 0) - (a.score || 0));
         return updated;
@@ -282,7 +304,27 @@ export default function GameRoom({
 
     const handleGameEnd = (data) => {
       if (!data) return;
-      if (Array.isArray(data.scores)) applyScores(data.scores);
+      
+      // Cập nhật scores vào players state và lưu leaderboard data riêng
+      if (Array.isArray(data.scores)) {
+        setPlayers(prevPlayers => {
+          const map = new Map(data.scores.map(s => [s.user_id, s.score]));
+          const leaderboardData = (prevPlayers || []).map(p => {
+            const newScore = map.get(p.id);
+            return {
+              ...p,
+              score: newScore !== undefined ? newScore : (p.score ?? 0),
+              isDrawing: false
+            };
+          });
+          // Sắp xếp theo điểm giảm dần
+          leaderboardData.sort((a, b) => (b.score || 0) - (a.score || 0));
+          // Lưu vào leaderboardPlayers để hiển thị trong modal (không bị thay đổi khi có người rời phòng)
+          setLeaderboardPlayers(leaderboardData);
+          return leaderboardData;
+        });
+      }
+      
       setGameState('finished');
       setChatMessages((prev) => [
         ...(prev || []),
@@ -293,8 +335,6 @@ export default function GameRoom({
       setWord('');
       setWordLength(0);
       setCategory('');
-      // Xóa khung cam cho tất cả players
-      setPlayers((prev) => (prev || []).map(p => ({ ...p, isDrawing: false })));
       // Hiển thị modal bảng xếp hạng
       setShowLeaderboard(true);
     };
@@ -456,7 +496,7 @@ export default function GameRoom({
     <div className="game-room-page">
       {/* Leaderboard Modal */}
       <LeaderboardModal 
-        players={players} 
+        players={leaderboardPlayers.length > 0 ? leaderboardPlayers : players} 
         onClose={handleCloseLeaderboard} 
         show={showLeaderboard}
       />

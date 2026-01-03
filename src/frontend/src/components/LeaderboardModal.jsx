@@ -62,7 +62,7 @@ export default function LeaderboardModal({ players = [], onClose, show }) {
         {winner && (
           <div className="winner-section">
             <div className="winner-crown">👑</div>
-            <div className="winner-avatar-container">
+            <div className={`winner-avatar-container ${winner.hasLeft || winner.isActive === 255 ? 'avatar-grayscale' : ''}`}>
               {winner.avatarPath && (winner.avatarPath.startsWith('/assets/') || winner.avatarPath.startsWith('/src/assets/')) ? (
                 <img src={winner.avatarPath} alt="avatar" className="winner-avatar" />
               ) : (
@@ -80,7 +80,7 @@ export default function LeaderboardModal({ players = [], onClose, show }) {
             {otherPlayers.map((player, index) => (
               <div key={player.id || index} className="ranking-item">
                 <div className="ranking-number">#{index + 2}</div>
-                <div className="ranking-avatar">
+                <div className={`ranking-avatar ${player.hasLeft || player.isActive === 255 ? 'avatar-grayscale' : ''}`}>
                   {player.avatarPath && (player.avatarPath.startsWith('/assets/') || player.avatarPath.startsWith('/src/assets/')) ? (
                     <img src={player.avatarPath} alt="avatar" className="ranking-avatar-img" />
                   ) : (

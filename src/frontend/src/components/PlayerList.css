@@ -56,6 +56,22 @@
   opacity: 0.6;
 }
 
+.player-item.player-left {
+  opacity: 0.7;
+  background-color: #f0f0f0;
+}
+
+.player-avatar.avatar-grayscale {
+  filter: grayscale(100%);
+  opacity: 0.6;
+}
+
+.left-badge {
+  margin-left: 5px;
+  font-size: 1.1rem;
+  color: #666;
+}
+
 .player-avatar {
   position: relative;
   width: 50px;

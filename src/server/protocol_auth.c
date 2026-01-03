@@ -1,6 +1,7 @@
 #include "../include/protocol.h"
 #include "../include/auth.h"
 #include "../include/database.h"
+#include "../include/game.h"
 #include "../common/protocol.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,6 +11,9 @@
 
 // External database connection (tu main.c)
 extern db_connection_t* db;
+
+// Forward declaration from protocol_game.c
+extern int protocol_handle_round_timeout(server_t* server, room_t* room, const char* word_before_clear);
 
 /**
  * Gui LOGIN_RESPONSE
@@ -279,6 +283,16 @@ int protocol_handle_logout(server_t* server, int client_index, const message_t* 
 
         room_t* room = server_find_room_by_user(server, client->user_id);
         if (room) {
+            // Neu dang choi va nguoi roi la drawer -> end round ngay de game khong bi ket
+            int was_playing = (room->state == ROOM_PLAYING && room->game != NULL);
+            int was_drawer = (was_playing && room->game->drawer_id == client->user_id);
+            char word_before[64];
+            word_before[0] = '\0';
+            if (was_playing) {
+                strncpy(word_before, room->game->current_word, sizeof(word_before) - 1);
+                word_before[sizeof(word_before) - 1] = '\0';
+            }
+            
             int leaving_user_id = client->user_id;
             char leaving_username[32];
             strncpy(leaving_username, client->username, sizeof(leaving_username) - 1);
@@ -287,7 +301,15 @@ int protocol_handle_logout(server_t* server, int client_index, const message_t* 
             // Xoa player khoi phong
             room_remove_player(room, leaving_user_id);
 
-            if (room->player_count == 0) {
+            // Kiểm tra số người chơi active sau khi rời phòng
+            int active_count = 0;
+            for (int i = 0; i < room->player_count; i++) {
+                if (room->active_players[i] == 1) {
+                    active_count++;
+                }
+            }
+            
+            if (room->player_count == 0 || active_count == 0) {
                 // Xoa room khoi server
                 for (int i = 0; i < MAX_ROOMS; i++) {
                     if (server->rooms[i] == room) {
@@ -299,7 +321,29 @@ int protocol_handle_logout(server_t* server, int client_index, const message_t* 
                 room_destroy(room);
                 protocol_broadcast_room_list(server);
             } else {
-                protocol_broadcast_room_players_update(server, room, 1, leaving_user_id, leaving_username, -1);
+                // Đảm bảo owner là người chơi active
+                if (!room_ensure_active_owner(room)) {
+                    // Không có người chơi active nào, xóa phòng
+                    for (int i = 0; i < MAX_ROOMS; i++) {
+                        if (server->rooms[i] == room) {
+                            server->rooms[i] = NULL;
+                            server->room_count--;
+                            break;
+                        }
+                    }
+                    room_destroy(room);
+                    protocol_broadcast_room_list(server);
+                } else {
+                    protocol_broadcast_room_players_update(server, room, 1, leaving_user_id, leaving_username, -1);
+                }
+            }
+            
+            // Xu ly drawer roi phong trong game (sau khi da broadcast danh sach players)
+            if (was_drawer && room->game && word_before[0] != '\0') {
+                // End round hiện tại trước (để đảm bảo round được đếm đúng)
+                game_end_round(room->game, false, -1);
+                // Sau đó mới bắt đầu round mới
+                protocol_handle_round_timeout(server, room, word_before);
             }
         }
     }
