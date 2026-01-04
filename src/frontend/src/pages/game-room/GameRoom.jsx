@@ -53,6 +53,8 @@ export default function GameRoom({
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [leaderboardPlayers, setLeaderboardPlayers] = useState([]); // Lưu leaderboard data riêng
   const timerRef = useRef(null);
+  const [serverTimeLeft, setServerTimeLeft] = useState(null); // Thời gian từ server (authoritative)
+  const [displayTimeLeft, setDisplayTimeLeft] = useState(DEFAULT_ROUND_TIME); // Thời gian hiển thị (smoothed)
 
   const isOwner = useMemo(() => {
     if (myUserId == null) return false;
@@ -165,6 +167,9 @@ export default function GameRoom({
       setRoundStartMs(startMs);
       setTimeLimit(tl);
       setTimeLeft(tl);
+      // Reset server time khi bắt đầu round mới
+      setServerTimeLeft(null);
+      setDisplayTimeLeft(tl);
 
       // Cập nhật thông tin vòng
       const cr = typeof data.current_round === 'number' && !isNaN(data.current_round) ? data.current_round : 0;
@@ -206,6 +211,12 @@ export default function GameRoom({
         // Ignore errors when applying remote draw
         console.warn('Error applying remote draw:', err);
       }
+    };
+
+    const handleTimerUpdate = (data) => {
+      // data: { time_left } - thời gian còn lại từ server (authoritative)
+      if (!data || typeof data.time_left !== 'number') return;
+      setServerTimeLeft(data.time_left);
     };
 
     const handleCorrectGuess = (data) => {
@@ -350,6 +361,7 @@ export default function GameRoom({
       services.subscribe('room_players_update', handleRoomPlayersUpdate);
       services.subscribe('room_update', handleRoomUpdate);
       services.subscribe('game_start', handleGameStart);
+      services.subscribe('timer_update', handleTimerUpdate);
       services.subscribe('draw_broadcast', handleDrawBroadcast);
       services.subscribe('correct_guess', handleCorrectGuess);
       services.subscribe('chat_broadcast', handleChatBroadcast);
@@ -363,6 +375,7 @@ export default function GameRoom({
       services.unsubscribe('room_players_update', handleRoomPlayersUpdate);
       services.unsubscribe('room_update', handleRoomUpdate);
       services.unsubscribe('game_start', handleGameStart);
+      services.unsubscribe('timer_update', handleTimerUpdate);
       services.unsubscribe('draw_broadcast', handleDrawBroadcast);
       services.unsubscribe('correct_guess', handleCorrectGuess);
       services.unsubscribe('chat_broadcast', handleChatBroadcast);
@@ -416,19 +429,55 @@ export default function GameRoom({
     };
   }, [roomId]);
 
-  // Đồng bộ countdown theo roundStartMs từ server (tất cả client sẽ hiển thị giống nhau)
+  // Hybrid timer: Server authority + Client smoothing
+  // Server gửi timer update mỗi 1 giây, client làm mượt giữa các updates
   useEffect(() => {
-    if (gameState !== 'playing') return;
-    if (!roundStartMs) return;
+    if (gameState !== 'playing') {
+      // Reset khi không chơi
+      setServerTimeLeft(null);
+      setDisplayTimeLeft(DEFAULT_ROUND_TIME);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
 
     // clear old interval
     if (timerRef.current) clearInterval(timerRef.current);
 
     const tick = () => {
-      const now = Date.now();
-      const elapsedSec = Math.floor((now - roundStartMs) / 1000);
-      const remain = Math.max(0, (timeLimit || DEFAULT_ROUND_TIME) - elapsedSec);
-      setTimeLeft(remain);
+      setDisplayTimeLeft(prev => {
+        let newValue;
+        
+        // Nếu có server time, ưu tiên dùng server time
+        if (serverTimeLeft !== null) {
+          // Nếu lệch quá nhiều (> 1 giây), nhảy ngay để đồng bộ
+          if (Math.abs(prev - serverTimeLeft) > 1) {
+            newValue = serverTimeLeft;
+          } else {
+            // Nếu không, làm mượt: giảm 0.25s mỗi tick (250ms interval)
+            // Nhưng không được nhỏ hơn serverTimeLeft
+            const smoothed = prev - 0.25;
+            newValue = Math.max(smoothed, serverTimeLeft);
+          }
+        } else {
+          // Nếu chưa có server time, dùng local calculation như fallback
+          if (roundStartMs) {
+            const now = Date.now();
+            const elapsedSec = Math.floor((now - roundStartMs) / 1000);
+            newValue = Math.max(0, (timeLimit || DEFAULT_ROUND_TIME) - elapsedSec);
+          } else {
+            // Fallback cuối cùng
+            newValue = prev > 0 ? prev - 0.25 : 0;
+          }
+        }
+        
+        // Cập nhật timeLeft ngay khi displayTimeLeft thay đổi
+        setTimeLeft(Math.max(0, Math.floor(newValue)));
+        
+        return newValue;
+      });
     };
 
     tick();
@@ -437,7 +486,7 @@ export default function GameRoom({
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = null;
     };
-  }, [gameState, roundStartMs, timeLimit]);
+  }, [gameState, roundStartMs, timeLimit, serverTimeLeft]);
 
   const handleLeaveRoom = () => {
     console.log('[GameRoom] User explicitly leaving room:', roomId);

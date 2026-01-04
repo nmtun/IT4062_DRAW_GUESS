@@ -506,5 +506,31 @@ int protocol_handle_round_timeout(server_t* server, room_t* room, const char* wo
     return 0;
 }
 
+/**
+ * Broadcast TIMER_UPDATE đến tất cả clients trong phòng
+ * Payload: time_left(2 bytes) - thời gian còn lại tính bằng giây
+ */
+int protocol_broadcast_timer_update(server_t* server, room_t* room) {
+    if (!server || !room || !room->game) return -1;
+    
+    game_state_t* game = room->game;
+    if (game->game_ended || game->round_start_time == 0) return -1;
+    
+    // Tính thời gian còn lại
+    time_t now = time(NULL);
+    int elapsed = (int)(now - game->round_start_time);
+    int time_left = game->time_limit - elapsed;
+    
+    // Đảm bảo time_left không âm
+    if (time_left < 0) time_left = 0;
+    
+    // Payload: time_left(2 bytes)
+    uint8_t payload[2];
+    write_u16_be(payload, (uint16_t)time_left);
+    
+    // Broadcast đến tất cả clients trong phòng
+    return server_broadcast_to_room(server, room->room_id, MSG_TIMER_UPDATE, payload, 2, -1);
+}
+
 
 

@@ -17,6 +17,8 @@ extern db_connection_t* db;
 
 // Static variable để track last database ping
 static time_t last_db_ping = 0;
+// Static variable để track thời gian gửi timer update cuối cùng
+static time_t last_timer_update = 0;
 
 // Khoi tao server
 int server_init(server_t *server, int port) {
@@ -470,6 +472,7 @@ void server_event_loop(server_t *server) {
         }
 
         // Tick: kiem tra timeout cho tat ca phong dang choi
+        time_t now = time(NULL);
         for (int r = 0; r < MAX_ROOMS; r++) {
             room_t* room = server->rooms[r];
             if (!room || room->state != ROOM_PLAYING || !room->game) continue;
@@ -487,8 +490,19 @@ void server_event_loop(server_t *server) {
             }
         }
 
+        // Gửi timer update mỗi 1 giây cho tất cả phòng đang chơi
+        if (now - last_timer_update >= 1) {
+            extern int protocol_broadcast_timer_update(server_t* server, room_t* room);
+            for (int r = 0; r < MAX_ROOMS; r++) {
+                room_t* room = server->rooms[r];
+                if (room && room->state == ROOM_PLAYING && room->game) {
+                    protocol_broadcast_timer_update(server, room);
+                }
+            }
+            last_timer_update = now;
+        }
+
         // Ping database mỗi 5 phút để giữ connection sống
-        time_t now = time(NULL);
         if (now - last_db_ping > 300) { // 5 phút = 300 giây
             if (db && db->conn) {
                 mysql_ping(db->conn);

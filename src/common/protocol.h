@@ -43,6 +43,7 @@
 #define MSG_ROUND_END            0x27
 #define MSG_GAME_END             0x28
 #define MSG_HINT                 0x29
+#define MSG_TIMER_UPDATE         0x2A  // Server gửi thời gian còn lại định kỳ
 
 // Chat (0x30 - 0x3F)
 #define MSG_CHAT_MESSAGE         0x30

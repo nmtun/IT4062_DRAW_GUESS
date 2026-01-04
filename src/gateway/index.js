@@ -373,6 +373,9 @@ class Gateway {
             case 0x28: // GAME_END
                 parsedData = this.parseGameEnd(payload);
                 break;
+            case 0x2A: // TIMER_UPDATE
+                parsedData = this.parseTimerUpdate(payload);
+                break;
             case 0x31: // CHAT_BROADCAST
                 parsedData = this.parseChatBroadcast(payload);
                 break;
@@ -441,6 +444,7 @@ class Gateway {
             0x26: 'wrong_guess',
             0x27: 'round_end',
             0x28: 'game_end',
+            0x2A: 'timer_update',
             0x23: 'draw_broadcast',
             0x41: 'game_history_response',
             0x31: 'chat_broadcast',
@@ -781,6 +785,16 @@ class Gateway {
         }
         Logger.info(`[Gateway] Parsed GAME_START: current_round=${current_round}, player_count=${player_count}, total_rounds=${total_rounds}, category=${category}`);
         return { drawer_id, word_length, time_limit, round_start_ms, current_round, player_count, total_rounds, word, category };
+    }
+
+    parseTimerUpdate(payload) {
+        // Payload: time_left(2 bytes) - thời gian còn lại tính bằng giây
+        if (payload.length < 2) {
+            Logger.warn('[Gateway] TIMER_UPDATE payload too short');
+            return { error: 'Invalid payload' };
+        }
+        const time_left = payload.readUInt16BE(0);
+        return { time_left };
     }
 
     parseCorrectGuess(payload) {
