@@ -210,8 +210,11 @@ bool game_start_round(game_state_t* game) {
         game->drawer_index = 0;
     }
     
-    // Chọn drawer tiếp theo (không kiểm tra active ở đây)
-    game->drawer_index = pick_next_drawer_index(game);
+    // Round đầu tiên: giữ nguyên drawer_index (đã là owner)
+    // Các round sau: chọn drawer tiếp theo
+    if (game->current_round > 1) {
+        game->drawer_index = pick_next_drawer_index(game);
+    }
     
     // Kiểm tra drawer_index hợp lệ
     if (game->drawer_index < 0 || game->drawer_index >= game->room->player_count) {
@@ -405,9 +408,6 @@ void game_end_round(game_state_t* game, bool success, int winner_user_id) {
 
     printf("[GAME] Room %d end round %d: %s, word='%s'\n",
            game->room->room_id, game->current_round, success ? "SUCCESS" : "TIMEOUT", game->current_word);
-
-    // chuan bi drawer cho round tiep theo
-    game->drawer_index = pick_next_drawer_index(game);
 
     // reset word/timer cho round hien tai (round moi se set lai)
     game->current_word[0] = '\0';
